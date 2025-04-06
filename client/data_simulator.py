@@ -1,7 +1,7 @@
 # client/data_simulator.py
 import numpy as np
 import logging
-from .config import NUM_SAMPLES, FEATURE_COUNT, THREAT_RATIO
+from client.config import NUM_SAMPLES, FEATURE_COUNT, THREAT_RATIO
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

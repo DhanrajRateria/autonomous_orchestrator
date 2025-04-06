@@ -5,9 +5,9 @@ import time
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
-from . import crypto_manager
-from . import model_manager
-from .config import SERVER_HOST, SERVER_PORT, NUM_ROUNDS, CLIENTS_PER_ROUND, MIN_CLIENTS_FOR_AGGREGATION
+from server import crypto_manager
+from server import model_manager
+from server.config import SERVER_HOST, SERVER_PORT, NUM_ROUNDS, CLIENTS_PER_ROUND, MIN_CLIENTS_FOR_AGGREGATION
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

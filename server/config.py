@@ -9,3 +9,10 @@ PRECISION_FACTOR = 10**6 # Factor to scale floats to integers for HE
 
 # --- Simulated Autonomous Action ---
 THREAT_THRESHOLD = 0.8 # If avg threat probability > threshold, trigger action
+
+# --- Quantum-Inspired Enhancements ---
+ENABLE_QKD_SIMULATION = True # Flag to enable/disable simulated QKD
+QKD_KEY_LENGTH = 256 # Simulated key length (bits) after reconciliation
+
+ENABLE_QIFA_MOMENTUM = True # Flag to enable/disable QIFA momentum component
+QIFA_MOMENTUM = 0.9 # Momentum factor for QIFA

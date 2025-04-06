@@ -1,6 +1,0 @@
-numpy
-scikit-learn
-flask
-phe==1.5.0
-requests
-joblib

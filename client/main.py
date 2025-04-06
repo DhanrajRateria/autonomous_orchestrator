@@ -4,10 +4,10 @@ import time
 import logging
 import numpy as np
 
-from .config import SERVER_URL, CLIENT_ID
-from . import crypto_manager
-from . import data_simulator
-from . import local_trainer
+from client.config import SERVER_URL, CLIENT_ID
+from client import crypto_manager
+from client import data_simulator
+from client import local_trainer
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

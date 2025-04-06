@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.exceptions import NotFittedError
 import logging
-from .config import LOCAL_EPOCHS, BATCH_SIZE, FEATURE_COUNT # LEARNING_RATE (if using SGD)
+from client.config import LOCAL_EPOCHS, BATCH_SIZE, FEATURE_COUNT # LEARNING_RATE (if using SGD)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -3,7 +3,7 @@ import phe as paillier
 import json
 import logging
 import numpy as np
-from .config import PRECISION_FACTOR
+from client.config import PRECISION_FACTOR
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
