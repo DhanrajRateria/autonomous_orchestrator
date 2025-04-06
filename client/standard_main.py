@@ -3,10 +3,9 @@ import requests
 import time
 import logging
 import numpy as np
-import json # Added
 
-from client.config import SERVER_URL, CLIENT_ID, ENABLE_QKD_SIMULATION, FEATURE_COUNT # Import QKD flag
-from client import qkd_crypto_manager
+from client.config import SERVER_URL, CLIENT_ID
+from client import crypto_manager
 from client import data_simulator
 from client import local_trainer
 
@@ -16,76 +15,36 @@ logger = logging.getLogger(__name__)
 # --- State ---
 current_round = -1
 expected_feature_count = -1
-derived_qkd_key = None # Store result of QKD sim
 
-# --- Modified Registration Function ---
 def register_with_server():
-    """Registers the client with the orchestrator server. Optionally performs QKD simulation."""
-    global expected_feature_count, derived_qkd_key
+    """Registers the client with the orchestrator server and gets the public key."""
+    global expected_feature_count
     url = f"{SERVER_URL}/register"
-    payload = {'client_id': CLIENT_ID}
-    alice_bits, alice_bases = None, None # Store QKD state
-
-    # --- QKD Simulation (Client Step 1: Prepare) ---
-    if ENABLE_QKD_SIMULATION:
-        logger.info("QKD Simulation: Generating client's (Alice's) bits and bases...")
-        alice_bits, alice_bases, alice_bases_str = qkd_crypto_manager.generate_qkd_client_initial_state()
-        payload['qkd_alice_bases'] = alice_bases_str # Send bases to server
-        logger.info("QKD Simulation: Sending bases to server.")
-
     try:
-        response = requests.post(url, json=payload)
-        response.raise_for_status() # Raise HTTPError for bad responses
+        response = requests.post(url, json={'client_id': CLIENT_ID})
+        response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
         data = response.json()
-
-        # --- QKD Simulation (Client Step 2: Reconcile) ---
-        bob_bases_str = data.get('qkd_bob_bases')
-        if ENABLE_QKD_SIMULATION and bob_bases_str is not None:
-            logger.info("QKD Simulation: Received Bob's bases. Reconciling key...")
-            derived_qkd_key = qkd_crypto_manager.simulate_qkd_client_protocol(bob_bases_str, alice_bits, alice_bases)
-            if derived_qkd_key:
-                 logger.info(f"QKD Simulation: Client derived shared key. This key would decrypt the HE public key if it were encrypted.")
-                 # In a real implementation:
-                 # encrypted_he_key = data.get('encrypted_he_public_key')
-                 # serialized_he_key = decrypt_with_aes_gcm(encrypted_he_key, derived_qkd_key)
-                 # he_pub_key_data = json.loads(serialized_he_key)
-                 # qkd_crypto_manager.set_public_key(he_pub_key_data)
-            else:
-                 logger.error("QKD Simulation: Failed to derive shared key on client side.")
-                 return False # Treat QKD failure as registration failure? Or proceed without?
-        elif ENABLE_QKD_SIMULATION:
-             logger.warning("QKD Simulation: Server did not return Bob's bases. Cannot complete QKD.")
-             # Decide how to handle - maybe registration fails if QKD is mandatory
-
-        # Set HE Public Key (using the potentially unencrypted key from server in this simulation)
-        he_pub_key_data = data.get('public_key')
-        if not he_pub_key_data:
-            logger.error("Registration failed: Server did not provide HE public key.")
-            return False
-        qkd_crypto_manager.set_public_key(he_pub_key_data) # Pass the dict directly
-
-
-        # Get expected feature count
-        expected_feature_count = data.get('feature_count', -1)
+        crypto_manager.set_public_key(data['public_key'])
+        expected_feature_count = data.get('feature_count', -1) # Get expected feature count
         if expected_feature_count == -1 :
             logger.warning("Server did not provide expected feature count.")
         else:
+            # Validate against local config (optional but good practice)
+            from .config import FEATURE_COUNT
             if expected_feature_count != FEATURE_COUNT:
                  logger.error(f"FATAL: Feature count mismatch! Server expects {expected_feature_count}, client configured for {FEATURE_COUNT}.")
-                 return False
-        logger.info(f"Successfully registered Client {CLIENT_ID}. Server expects {expected_feature_count} features.")
+                 return False # Indicate registration failure due to mismatch
+            logger.info(f"Successfully registered Client {CLIENT_ID}. Server expects {expected_feature_count} features.")
         return True
-
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to register with server at {url}: {e}")
         return False
     except Exception as e:
-        logger.error(f"An error occurred during registration: {e}", exc_info=True)
+        logger.error(f"An error occurred during registration: {e}")
         return False
 
-# --- get_global_model (Unchanged) ---
 def get_global_model(round_num):
-    # ... (no changes needed) ...
+    """Fetches the current global model weights from the server."""
     url = f"{SERVER_URL}/get_model"
     params = {'client_id': CLIENT_ID, 'round': round_num}
     try:
@@ -104,14 +63,14 @@ def get_global_model(round_num):
         logger.error(f"An error occurred while fetching model: {e}")
         return None
 
-# --- submit_encrypted_update (Unchanged) ---
+
 def submit_encrypted_update(round_num, encrypted_update_json):
-    # ... (no changes needed) ...
+    """Submits the encrypted local model update to the server."""
     url = f"{SERVER_URL}/submit_update"
     payload = {
         'client_id': CLIENT_ID,
         'round': round_num,
-        'update': encrypted_update_json
+        'update': encrypted_update_json # This is the JSON string from crypto_manager
     }
     try:
         response = requests.post(url, json=payload)
@@ -125,73 +84,92 @@ def submit_encrypted_update(round_num, encrypted_update_json):
         logger.error(f"An error occurred during update submission: {e}")
         return False
 
-# --- run_client_round (Unchanged internally, relies on successful registration) ---
+
 def run_client_round():
-    # ... (no changes needed in the core logic) ...
+    """Executes one round of federated learning from the client's perspective."""
     global current_round
 
+    # 1. Get Global Model for the current round
     logger.info(f"Attempting to fetch model for round {current_round}...")
     global_weights = get_global_model(current_round)
     if global_weights is None:
         logger.warning(f"Could not get global model for round {current_round}. Skipping this round.")
         return
 
+    # Validate weight dimensions if possible (needs expected_feature_count)
+    if expected_feature_count > 0:
+        # Expected size = features + intercept (usually 1 for binary classification)
+        # This check is simplistic as intercept shape can vary. Rely on server/client consistency.
+        # expected_len = expected_feature_count + 1
+        # if len(global_weights) != expected_len:
+        #      logger.error(f"Received model weights have unexpected length {len(global_weights)}, expected around {expected_len}. Check model configuration.")
+        #      return # Skip round due to potential incompatibility
+        pass # Relaxed check for now
+
+    # 2. Generate Local Data
     logger.info("Generating local security data...")
     X_local, y_local = data_simulator.generate_data(CLIENT_ID)
     if X_local.shape[1] != expected_feature_count:
          logger.error(f"FATAL: Generated data feature count {X_local.shape[1]} doesn't match expected {expected_feature_count}.")
-         return
+         return # Stop if data shape is wrong
 
+    # 3. Train Local Model
     logger.info("Training local model...")
     start_train_time = time.time()
     weight_difference = local_trainer.train_local_model(global_weights, X_local, y_local, CLIENT_ID)
     train_time = time.time() - start_train_time
     logger.info(f"Local training finished in {train_time:.4f} seconds.")
 
+    # 4. Encrypt the Update (Weight Difference)
     logger.info("Encrypting model update...")
     start_encrypt_time = time.time()
     try:
-        encrypted_update_json = qkd_crypto_manager.encrypt_vector(weight_difference)
+        encrypted_update_json = crypto_manager.encrypt_vector(weight_difference)
         encrypt_time = time.time() - start_encrypt_time
         logger.info(f"Encryption finished in {encrypt_time:.4f} seconds.")
-    except ValueError as e:
+    except ValueError as e: # Catch errors like public key not set
         logger.error(f"Encryption failed: {e}. Cannot submit update.")
         return
     except Exception as e:
         logger.error(f"An unexpected error occurred during encryption: {e}")
         return
 
+    # 5. Submit Encrypted Update
     logger.info("Submitting encrypted update to server...")
     submit_encrypted_update(current_round, encrypted_update_json)
 
 
-# --- main_loop (Unchanged internally, relies on successful registration) ---
 def main_loop():
-    # ... (no changes needed) ...
+    """Main loop for the client."""
     global current_round
-    if not register_with_server(): # Registration now includes QKD simulation attempt
+    if not register_with_server():
         logger.error("Client registration failed. Exiting.")
         return
 
-    server_rounds = 5
+    # Participate in rounds (in reality, driven by server coordination)
+    # Here, we poll or assume rounds increment sequentially.
+    server_rounds = 5 # Get this from config or server if possible
     from .config import SERVER_URL
-    r_check_url = f"{SERVER_URL}/get_model"
+    r_check_url = f"{SERVER_URL}/get_model" # Use get_model endpoint to check current round
+
     processed_rounds = set()
 
     while True:
+        # Check current server round (simple polling mechanism)
         try:
-            params = {'client_id': CLIENT_ID, 'round': -1}
+            # Make a lightweight request just to check the round
+            params = {'client_id': CLIENT_ID, 'round': -1} # Ask for invalid round
             response = requests.get(r_check_url, params=params, timeout=10)
-            server_round = -1
             if response.status_code == 400 and "current is" in response.text:
+                 # Extract current round from error message (hacky, needs better API)
                  try:
                      msg = response.json().get("error", "")
                      server_round = int(msg.split("current is ")[1].split(")")[0])
-                 except Exception:
+                 except:
                       logger.warning("Could not parse current round from server response.")
                       time.sleep(10)
                       continue
-            elif response.status_code == 200:
+            elif response.status_code == 200: # Should not happen for round -1, but handle defensively
                  server_round = response.json().get("round", -1)
             else:
                  logger.warning(f"Unexpected response ({response.status_code}) when checking server round.")
@@ -199,12 +177,12 @@ def main_loop():
                  continue
 
         except requests.exceptions.Timeout:
-             logger.warning("Timeout checking server round.")
+             logger.warning("Timeout checking server round. Server might be busy or down.")
              time.sleep(15)
              continue
         except requests.exceptions.RequestException as e:
             logger.warning(f"Could not connect to server to check round: {e}")
-            time.sleep(15)
+            time.sleep(15) # Wait longer if connection fails
             continue
 
         if server_round > current_round and server_round not in processed_rounds:
@@ -215,13 +193,15 @@ def main_loop():
         elif server_round == -1 :
              logger.info("Server not yet started or finished rounds. Waiting.")
         else:
-            pass
+            # logger.info(f"Waiting for next round (current server round: {server_round})...")
+            pass # Already processed or waiting for server to advance
 
-        if len(processed_rounds) >= server_rounds:
+        # Stop condition (example: after a certain number of rounds)
+        if len(processed_rounds) >= server_rounds: # Match server's NUM_ROUNDS
              logger.info("Finished participating in all rounds.")
              break
 
-        time.sleep(5)
+        time.sleep(5) # Wait before checking again
 
 
 if __name__ == '__main__':

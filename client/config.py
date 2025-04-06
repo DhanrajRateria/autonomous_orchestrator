@@ -15,3 +15,8 @@ BATCH_SIZE = 32
 LEARNING_RATE = 0.01 # Relevant if using SGD-based models, less so for LogisticRegression default solver
 
 PRECISION_FACTOR = 10**6 # MUST MATCH SERVER'S config.PRECISION_FACTOR
+
+# --- Quantum-Inspired Enhancements (Client Side) ---
+# Corresponds to server config, used during registration
+ENABLE_QKD_SIMULATION = True # Should match server setting ideally
+QKD_SIM_LENGTH = 512 # Initial number of bits/bases to generate (needs to be > server's QKD_KEY_LENGTH)

@@ -3,106 +3,78 @@ from flask import Flask, request, jsonify
 import logging
 import time
 import threading
-import json # Added for parsing
 from concurrent.futures import ThreadPoolExecutor
 
 from server import crypto_manager
-from server import qifa_model_manager
-from server.config import (
-    SERVER_HOST, SERVER_PORT, NUM_ROUNDS, CLIENTS_PER_ROUND,
-    MIN_CLIENTS_FOR_AGGREGATION, ENABLE_QKD_SIMULATION, QKD_KEY_LENGTH
-) # Import QKD config
+from server import model_manager
+from server.config import SERVER_HOST, SERVER_PORT, NUM_ROUNDS, CLIENTS_PER_ROUND, MIN_CLIENTS_FOR_AGGREGATION
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
-# ... (executor, global state variables remain the same) ...
+# In-memory state (replace with database/persistent storage in production)
 client_registry = {} # client_id -> last_seen
 round_updates = {} # round_number -> {client_id: encrypted_update_json}
 current_round = 0
 global_model = None
-server_lock = threading.Lock()
-executor = ThreadPoolExecutor(max_workers=4)
+server_lock = threading.Lock() # To protect shared state like round_updates
+
+# Thread pool for handling concurrent tasks like decryption/aggregation
+executor = ThreadPoolExecutor(max_workers=4) # Adjust worker count based on server resources
 
 def initialize_server():
     """Initialize server components."""
     global global_model
     logger.info("Initializing orchestrator server...")
-    crypto_manager.generate_keys() # Generates HE keys
-    global_model = qifa_model_manager.load_model() # Loads model & initializes QIFA velocity
+    crypto_manager.generate_keys()
+    global_model = model_manager.load_model()
     logger.info("Server initialized.")
 
-# --- Modified Registration Endpoint for QKD Simulation ---
 @app.route('/register', methods=['POST'])
 def register_client():
-    """Allows clients to register. Optionally performs simulated QKD."""
-    data = request.json
-    client_id = data.get('client_id')
+    """Allows clients to register and get the public key."""
+    client_id = request.json.get('client_id')
     if not client_id:
         return jsonify({"error": "Client ID required"}), 400
 
-    serialized_he_pub_key = crypto_manager.get_serialized_public_key()
-    qkd_bases_bob = None
-    qkd_shared_key = None # Store the derived key conceptually
-
-    # --- Simulated QKD Exchange ---
-    if ENABLE_QKD_SIMULATION:
-        alice_bases_str = data.get('qkd_alice_bases')
-        if alice_bases_str:
-            logger.info(f"QKD Simulation: Received Alice's bases from {client_id}. Simulating Bob's side...")
-            qkd_bases_bob, qkd_shared_key = crypto_manager.simulate_qkd_server_protocol(client_id, alice_bases_str)
-            if qkd_shared_key:
-                logger.info(f"QKD Simulation: Derived shared key for {client_id}. This key would ideally encrypt the HE public key transmission.")
-                # In a real implementation:
-                # encrypted_he_pub_key = encrypt_with_aes_gcm(serialized_he_pub_key, qkd_shared_key)
-                # response_data['encrypted_he_public_key'] = encrypted_he_pub_key
-            else:
-                logger.error(f"QKD Simulation Failed for {client_id}. Proceeding without QKD protection.")
-                # Fallback: Send unencrypted (as done currently) or deny registration
-        else:
-            logger.warning(f"Client {client_id} registered but did not provide QKD bases (QKD enabled).")
-            # Decide policy: allow registration without QKD or deny? Allowing for now.
-
-    # Store client info (simplified)
     with server_lock:
-        client_registry[client_id] = {'last_seen': time.time(), 'qkd_key': qkd_shared_key}
+        client_registry[client_id] = time.time()
 
-    # Prepare response
-    response_data = {
-        "message": "Registered successfully",
-        "public_key": json.loads(serialized_he_pub_key), # Send standard public key (simulation only)
-        "feature_count": qifa_model_manager.MODEL_FEATURE_COUNT
-    }
-    if qkd_bases_bob is not None:
-         response_data["qkd_bob_bases"] = qkd_bases_bob # Send Bob's bases for client reconciliation simulation
+    pub_key = crypto_manager.get_public_key()
+    # Serialize public key for sending via JSON
+    pub_key_json = {'n': str(pub_key.n)} # Only 'n' is needed by clients for encryption usually
 
     logger.info(f"Client {client_id} registered.")
-    return jsonify(response_data)
+    return jsonify({
+        "message": "Registered successfully",
+        "public_key": pub_key_json,
+        "feature_count": model_manager.MODEL_FEATURE_COUNT # Inform client of expected features
+        })
 
-# --- /get_model endpoint (Unchanged) ---
 @app.route('/get_model', methods=['GET'])
 def get_model():
-    # ... (no changes needed) ...
+    """Provides the current global model parameters to clients."""
     client_id = request.args.get('client_id')
     request_round = request.args.get('round', type=int)
+
     if not client_id or client_id not in client_registry:
          return jsonify({"error": "Client not registered or invalid ID"}), 403
     if request_round != current_round:
          return jsonify({"error": f"Requesting model for wrong round ({request_round}), current is {current_round}"}), 400
-    model_weights = qifa_model_manager.get_model_weights(global_model)
+
+    model_weights = model_manager.get_model_weights(global_model)
     logger.info(f"Sending model (round {current_round}) to client {client_id}")
+
     return jsonify({
         "round": current_round,
-        "weights": model_weights.tolist()
+        "weights": model_weights.tolist() # Send weights as a list
         })
 
-
-# --- /submit_update endpoint (Unchanged) ---
 @app.route('/submit_update', methods=['POST'])
 def submit_update():
-    # ... (no changes needed) ...
+    """Receives encrypted model updates from clients."""
     data = request.json
     client_id = data.get('client_id')
     round_num = data.get('round')
@@ -118,6 +90,7 @@ def submit_update():
     with server_lock:
         if current_round not in round_updates:
             round_updates[current_round] = {}
+        # Only accept one update per client per round
         if client_id in round_updates[current_round]:
             logger.warning(f"Client {client_id} already submitted update for round {current_round}. Ignoring.")
             return jsonify({"message": "Update already received for this round"}), 200
@@ -125,13 +98,14 @@ def submit_update():
         round_updates[current_round][client_id] = encrypted_update_json
         logger.info(f"Received encrypted update from {client_id} for round {current_round}. Total updates this round: {len(round_updates[current_round])}")
 
+        # Check if enough updates received to trigger aggregation
         if len(round_updates[current_round]) >= MIN_CLIENTS_FOR_AGGREGATION:
+             # Optionally trigger aggregation immediately or wait for a timer/end of round
              logger.info(f"Minimum updates ({MIN_CLIENTS_FOR_AGGREGATION}) reached for round {current_round}. Aggregation can proceed.")
+             # We will trigger aggregation explicitly in the main training loop
 
     return jsonify({"message": "Update received successfully"})
 
-
-# --- Modified Federated Round Logic ---
 def run_federated_round(round_num):
     """Manages a single round of federated learning."""
     global global_model, current_round
@@ -139,19 +113,26 @@ def run_federated_round(round_num):
 
     with server_lock:
         current_round = round_num
+        # In a real system, client selection would be more sophisticated
+        # Here, we assume clients participating are those who submit updates
         round_updates[current_round] = {} # Clear updates for the new round
 
+    # Wait for clients to fetch the model and submit updates
+    # In a real system, use timeouts and potentially select specific clients
     logger.info(f"Waiting for client updates for round {round_num}...")
+    # We'll rely on a timeout or a manual trigger in this simple loop.
+    # Let's wait for a fixed time or until enough clients respond.
     round_start_time = time.time()
-    wait_time_seconds = 60
+    wait_time_seconds = 60 # Wait up to 60 seconds for updates
 
     while time.time() - round_start_time < wait_time_seconds:
         with server_lock:
              num_received = len(round_updates.get(current_round, {}))
+        # logger.info(f"Round {current_round}: Received {num_received} updates...")
         if num_received >= MIN_CLIENTS_FOR_AGGREGATION:
              logger.info(f"Round {current_round}: Reached minimum {num_received} updates. Proceeding early.")
              break
-        time.sleep(5)
+        time.sleep(5) # Check every 5 seconds
 
     # --- Aggregation and Update ---
     with server_lock:
@@ -161,59 +142,53 @@ def run_federated_round(round_num):
 
         if num_updates < MIN_CLIENTS_FOR_AGGREGATION:
             logger.warning(f"Round {current_round}: Not enough updates ({num_updates}) received. Skipping model update for this round.")
-            return
+            return # Skip to next round
 
+        # --- System Programming Aspect: Concurrent Aggregation/Decryption ---
         # Submit aggregation and decryption to the thread pool
         logger.info("Submitting aggregation and decryption tasks to executor...")
-        # Pass the list of encrypted update JSON strings
-        future = executor.submit(aggregate_and_decrypt, list(updates_to_process.values()))
+        future = executor.submit(aggregate_and_decrypt, list(updates_to_process.values()), num_updates)
 
+        # Wait for the result
         try:
-            # Result is the decrypted *sum* of scaled updates
-            aggregated_decrypted_updates = future.result(timeout=120)
+            aggregated_decrypted_updates = future.result(timeout=120) # Timeout for decryption
 
             if aggregated_decrypted_updates:
                 logger.info("Aggregation and decryption complete. Updating global model.")
-                # The update function now handles averaging and QIFA momentum internally
-                global_model = qifa_model_manager.update_global_model(aggregated_decrypted_updates, num_updates)
+                global_model = model_manager.update_global_model(aggregated_decrypted_updates, num_updates)
 
+                # --- Autonomous Action Trigger ---
                 logger.info("Evaluating model and checking for autonomous actions...")
-                qifa_model_manager.evaluate_model_and_trigger_action(global_model)
+                model_manager.evaluate_model_and_trigger_action(global_model)
 
             else:
                 logger.error("Aggregation/decryption failed or returned no result.")
 
         except Exception as e:
-            logger.error(f"Error during aggregation/decryption task execution: {e}", exc_info=True)
+            logger.error(f"Error during aggregation/decryption task execution: {e}")
+
 
     logger.info(f"--- Federated Round {round_num} Complete ---")
 
 
-def aggregate_and_decrypt(encrypted_updates_list):
-    """
-    Aggregates encrypted updates and decrypts the sum.
-    Args:
-        encrypted_updates_list (list): List of JSON strings, each an encrypted vector.
-    Returns:
-        list: The decrypted aggregated vector (list of integers) or None on failure.
-    """
-    num_clients = len(encrypted_updates_list)
-    if num_clients == 0: return None
+def aggregate_and_decrypt(encrypted_updates_list, num_clients):
+    """Function to run aggregation and decryption, potentially in parallel."""
     try:
-        logger.info(f"Aggregating {num_clients} encrypted vectors using HE...")
+        # 1. Aggregate Encrypted Updates
+        logger.info(f"Aggregating {num_clients} encrypted vectors...")
         aggregated_encrypted_json = crypto_manager.aggregate_encrypted_vectors(encrypted_updates_list)
         if aggregated_encrypted_json is None:
-            logger.error("HE Aggregation resulted in None.")
+            logger.error("Aggregation resulted in None.")
             return None
 
+        # 2. Decrypt the Aggregated Result
         logger.info("Decrypting aggregated vector...")
         start_decrypt_time = time.time()
-        # Decrypts the single aggregated vector
         aggregated_decrypted_updates = crypto_manager.decrypt_vector(aggregated_encrypted_json)
         decrypt_time = time.time() - start_decrypt_time
         logger.info(f"Decryption took {decrypt_time:.4f} seconds.")
 
-        return aggregated_decrypted_updates # Return the list of decrypted summed integers
+        return aggregated_decrypted_updates
     except Exception as e:
          logger.error(f"Error in aggregate_and_decrypt: {e}", exc_info=True)
          return None
@@ -221,16 +196,21 @@ def aggregate_and_decrypt(encrypted_updates_list):
 
 def run_server():
     initialize_server()
+    # Start Flask server in a background thread
     flask_thread = threading.Thread(target=lambda: app.run(host=SERVER_HOST, port=SERVER_PORT, threaded=True), daemon=True)
     flask_thread.start()
     logger.info(f"Flask server running on http://{SERVER_HOST}:{SERVER_PORT}")
 
+    # Run federated learning rounds
     for r in range(NUM_ROUNDS):
         run_federated_round(r)
+        # Optional: Add delay between rounds
         time.sleep(5)
 
     logger.info("Federated learning process finished.")
-    # Keep Flask running... add shutdown if needed
+    # Keep the Flask server running if needed, or add shutdown logic
+    # flask_thread.join() # Uncomment if you want the main script to wait for Flask
+
 
 if __name__ == '__main__':
     run_server()
