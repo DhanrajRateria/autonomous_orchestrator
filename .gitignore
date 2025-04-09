@@ -1,9 +1,43 @@
-orchestrator/
+# Python cache files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Virtual environment
+venv/
+env/
+.env/
+*/venv/
+*/env/
+*/.env/
+orchestrator/
+
+# IDE folders
+.idea/
+.vscode/
+
+# Data files (if large or generated)
+data/*
+!data/.gitkeep
+
+# Log files
+logs/*
+!logs/.gitkeep
+
+# HE Keys (if saved to disk - DO NOT COMMIT PRIVATE KEYS)
+*.priv
+*.pub
+
+# OS generated files
 .DS_Store
-*.pkl
-*.pem
-*.log
+Thumbs.db
+
+# Coverage reports
+.coverage
+htmlcov/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/

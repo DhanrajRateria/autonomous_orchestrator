@@ -1,0 +1,25 @@
+# Federated Learning Settings
+server_address: "[::]:8080" # Use 0.0.0.0:8080 for non-local simulation
+num_rounds: 5
+num_clients: 3
+min_fit_clients: 3         # Minimum clients for training in a round
+min_evaluate_clients: 3    # Minimum clients for evaluation in a round
+min_available_clients: 3   # Minimum clients needed to start a round
+
+# Client Settings
+local_epochs: 2
+batch_size: 32
+learning_rate: 0.01
+
+# Model Settings
+num_features: 20          # Number of input features for the model
+num_hidden_units: 64
+num_classes: 2            # Binary classification (Threat / No Threat)
+
+# Data Settings
+num_samples_per_client: 1000
+data_skewness: 0.5        # Controls how different client data is (0=IID, 1=highly Non-IID)
+
+# Homomorphic Encryption Settings
+he_key_length: 1024       # Paillier key size (e.g., 1024, 2048). Larger is slower but more secure.
+he_precision_bits: 64     # Fixed-point precision for encoding floats

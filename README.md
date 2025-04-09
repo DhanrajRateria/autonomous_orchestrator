@@ -1,123 +1,138 @@
-# Autonomous Cloud Security Orchestrator using FL and HE
+# Autonomous Cloud Security Orchestrator using Federated Learning and Homomorphic Encryption
 
-This project demonstrates a conceptual Autonomous Cloud Security Orchestrator. It uses Federated Learning (FL) to train a threat detection model across multiple simulated cloud environments without sharing raw data. Homomorphic Encryption (HE) (specifically, the Paillier cryptosystem) is employed to protect the confidentiality of model updates during aggregation. The system simulates autonomous actions based on the learned global model's insights.
+This project implements a proof-of-concept system demonstrating how Federated Learning (FL) and Homomorphic Encryption (HE) can be combined for privacy-preserving threat detection across distributed cloud environments.
 
-## Architecture
+**Core Idea:** Multiple clients (representing different cloud tenants or environments) train a local threat detection model on their private security data. Instead of sharing raw data or plain model parameters, they encrypt their model *updates* using Paillier Homomorphic Encryption (which allows addition on encrypted data) and send them to a central orchestrator (server). The server aggregates these encrypted updates homomorphically, decrypts the *aggregated* result, updates the global model, and sends the improved global model back to the clients.
 
-*   **Orchestrator Server (`server/`):**
-    *   Manages the overall FL process (rounds).
-    *   Initializes and distributes the global threat detection model (Logistic Regression).
-    *   Generates and manages Paillier HE keys (public/private).
-    *   Receives encrypted model updates (weight differences) from clients.
-    *   Uses Paillier's additive homomorphism to aggregate encrypted updates.
-    *   Decrypts the aggregated update using the private key.
-    *   Updates the global model using the averaged decrypted updates.
-    *   Simulates autonomous actions (e.g., logging a warning) if threat metrics exceed a threshold.
-    *   Uses Flask for basic API communication.
-    *   Uses `concurrent.futures` to simulate efficient handling of cryptographic operations.
-*   **Cloud Client Agent (`client/`):**
-    *   Simulates an agent running in a specific cloud environment.
-    *   Registers with the server to get the HE public key and model details.
-    *   Generates synthetic local security data (simulating logs/events) with potential biases.
-    *   Receives the global model from the server.
-    *   Trains the model locally on its data (`local_trainer.py`).
-    *   Calculates the difference between its updated weights and the received global weights.
-    *   Encrypts this weight difference vector using the server's public HE key (`crypto_manager.py`).
-    *   Sends the encrypted update back to the server.
+## Features
 
-## Core Technologies
+*   **Federated Learning:** Uses the [Flower](https://flower.dev/) framework for client-server communication and FL orchestration.
+*   **Homomorphic Encryption:** Employs the [Paillier cryptosystem](https://github.com/data61/python-paillier) (`phe` library) for additive homomorphic encryption to protect model updates during aggregation.
+*   **Privacy Preservation:** Data remains local to each client. Only encrypted updates are shared. The server only decrypts the final aggregated update, not individual client contributions.
+*   **Threat Detection Model:** Includes a simple PyTorch MLP model for binary classification (e.g., Threat vs. No Threat).
+*   **Synthetic Data:** Generates synthetic, potentially Non-IID data to simulate client environments for demonstration purposes.
+*   **Modular Design:** Code is structured into `client`, `orchestrator`, and `shared` components.
+*   **Simulation:** Includes scripts to run the server and multiple clients concurrently (using threads or processes) on a single machine.
 
-*   **Federated Learning:** Enables collaborative model training without centralizing sensitive data. The server orchestrates rounds, and clients train locally.
-*   **Homomorphic Encryption (Paillier):** Allows the server to perform computations (addition for aggregation) on encrypted data without decrypting individual contributions. This protects the confidentiality of each client's model update.
-*   **System Programming Concepts (Simulated):** The architecture emphasizes component separation (server, client, crypto, model). Concurrency (`ThreadPoolExecutor`) is used on the server to handle potentially intensive cryptographic operations efficiently, mimicking optimizations needed in real systems. Efficient libraries like NumPy are used.
-*   **Autonomous Orchestration:** The server includes a placeholder `evaluate_model_and_trigger_action` function that simulates taking automated security actions based on the global model's state (e.g., detecting a high probability of threats).
+## Directory Structure
+autonomous_cloud_orchestrator/
+├── client/ # Client logic (training, encryption, Flower client)
+├── orchestrator/ # Server logic (HE aggregation, decryption, Flower server/strategy)
+├── shared/ # Code shared between client/server (model, HE utils, data utils)
+├── config/ # Configuration file (config.yaml)
+├── data/ # Placeholder for data (generated on the fly)
+├── logs/ # Placeholder for logs
+├── .gitignore # Git ignore file
+├── requirements.txt # Python dependencies
+└── README.md # This file
 
-## Setup and Running
 
-**1. Prerequisites:**
-   *   Python 3.8+
-   *   Install GMP library (see instructions in the code comments or original prompt).
-        *   Linux (Debian/Ubuntu): `sudo apt-get update && sudo apt-get install libgmp-dev`
-        *   Linux (Fedora/CentOS): `sudo yum install gmp-devel`
-        *   macOS (Homebrew): `brew install gmp`
-        *   Windows: Use WSL or find pre-compiled binaries/conda.
+## Setup
 
-**2. Install Python Dependencies:**
-   Navigate to the `server` directory and run:
-   ```bash
-   pip install -r requirements.txt
-```
-Navigate to the client directory and run:
-```bash
-pip install -r requirements.txt
-```
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository_url>
+    cd autonomous_cloud_orchestrator
+    ```
 
-**3. Run the Orchestrator Server:**
-Open a terminal in the autonomous_cloud_orchestrator root directory.
-```bash
-python -m server.main
-```
-The server will initialize, generate HE keys, start the Flask API, and begin the federated learning rounds.
+2.  **Create a virtual environment (recommended):**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+    ```
 
-**4. Run Client Agents:**
-Open separate terminals for each client you want to simulate (at least MIN_CLIENTS_FOR_AGGREGATION as defined in server/config.py, default is 2). In each client terminal, navigate to the autonomous_cloud_orchestrator root directory.
+3.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-```bash
-# Terminal 1 (Client 1)
-python -m client.main
+## Running the Simulation
 
-# Terminal 2 (Client 2)
-python -m client.main
-```
-Each client will generate a unique ID, register with the server, and participate in the learning rounds by fetching the model, training locally, encrypting updates, and submitting them.
+1.  **Start the Server:**
+    Open a terminal, activate the virtual environment, and run:
+    ```bash
+    python orchestrator/run_server.py --config config/config.yaml
+    ```
+    The server will initialize the HE keys (this might take a moment depending on key size) and wait for clients to connect.
 
-**5. Observe:**
-Watch the logs in the server and client terminals. You'll see:
-- Server starting rounds.
-- Clients registering and fetching the model.
-- Clients generating data and training.
-- Clients encrypting and submitting updates.
-- Server receiving updates, aggregating, decrypting.
-- Server updating the global model.
-- Server potentially triggering simulated autonomous actions if the threat threshold is met.
+2.  **Start the Clients:**
+    Open *another* terminal, activate the virtual environment, and run:
+    ```bash
+    python client/run_clients.py --config config/config.yaml --num_clients 3 --executor thread
+    ```
+    *   `--num_clients`: Specifies how many clients to simulate (should match or be less than `min_available_clients` in config for training to start).
+    *   `--executor`: Use `thread` (lighter, subject to GIL) or `process` (true parallelism, higher overhead, potential pickling issues with complex objects).
 
-## Novelty and Modifications
-**Combination:** The specific combination of FL for distributed cloud security and HE (Paillier) for update privacy with an autonomous orchestration layer is relatively novel in practical, open-source examples.
+    The clients will generate data, initialize, connect to the server, and participate in the federated learning rounds, encrypting their updates. You will see log output from both the server and the clients.
 
-**System Aspects:** Emphasis on component interaction and simulated concurrency addresses system-level design.
+## Configuration
 
-**Autonomous Trigger:** Explicitly including a simulated autonomous action based on model evaluation adds to the orchestration concept.
+Adjust parameters in `config/config.yaml`:
 
-**Modifications from Standard FL:** Incorporates the non-trivial steps of HE encryption/decryption and the necessary float-to-int scaling (PRECISION_FACTOR) required for Paillier.
+*   `server_address`: Server host/port. Use `"[::]:8080"` for local simulation accessible only on the same machine, or `0.0.0.0:8080` to be accessible from other machines on the network (use with caution).
+*   `num_rounds`: Total federated learning rounds.
+*   `num_clients`, `min_fit_clients`, etc.: Control FL participation.
+*   `local_epochs`, `batch_size`, `learning_rate`: Client training parameters.
+*   `num_features`, `num_hidden_units`, `num_classes`: Model architecture.
+*   `num_samples_per_client`, `data_skewness`: Data generation settings.
+*   `he_key_length`, `he_precision_bits`: Homomorphic encryption parameters. Larger key length is more secure but *significantly* slower. Higher precision allows finer float representation but increases computational cost.
 
-## Limitations & Future Work
-**Simulation:** Uses synthetic data and simulates cloud environments locally. Real-world integration requires cloud APIs, actual log ingestion, and robust agent deployment.
+## How it Works: FL + HE Flow
 
-**HE Performance:** Paillier encryption/decryption, especially with larger keys (required for security), is computationally intensive. Performance optimization (hardware acceleration, optimized libraries) is crucial.
+1.  **Initialization:** Server starts, generates Paillier keypair (Public Key PK, Private Key SK), and waits. Clients start, load data, initialize model.
+2.  **Round Start:** Server selects clients for the round.
+3.  **Parameter Distribution:** Server sends current global model parameters (plain text) to selected clients.
+4.  **Local Training:** Each client updates its local model with the received global parameters. It then trains the model on its local data for `local_epochs`.
+5.  **Update Calculation:** Client calculates the *difference* (delta) between its updated local parameters and the parameters it received from the server. `delta = local_params_final - global_params_received`.
+6.  **Encryption:** Client *flattens* the delta into a 1D array of floats. It then encodes each float into a large integer and encrypts it using the server's **Public Key (PK)**. This results in a list of Paillier `EncryptedNumber` objects.
+7.  **Serialization:** Client serializes this list of encrypted numbers into a byte stream (using `pickle` in this implementation).
+8.  **Update Transmission:** Client sends these serialized, encrypted bytes back to the server via Flower (wrapped in a NumPy array as a workaround for Flower's expected format).
+9.  **Aggregation (Server):**
+    *   Server receives serialized bytes from multiple clients.
+    *   Server deserializes bytes back into lists of `EncryptedNumber` objects for each client.
+    *   Server performs element-wise **addition directly on the encrypted numbers** (`encrypted_sum = encrypted_delta1 + encrypted_delta2 + ...`). This is the core HE operation.
+10. **Decryption (Server):** Server decrypts the *single aggregated sum* using its **Private Key (SK)**. This reveals the sum of all client deltas as large integers. Server decodes these integers back to floats.
+11. **Averaging:** Server divides the decrypted sum by the number of contributing clients to get the average delta.
+12. **Global Model Update:** Server adds the averaged delta to the previous global model parameters: `new_global_params = old_global_params + average_delta`.
+13. **Next Round:** Server sends the `new_global_params` to clients selected for the next round.
 
-**Precision Loss:** Converting floats to integers for HE can cause precision loss. The PRECISION_FACTOR needs careful tuning.
+## Novelty and Generalization
 
-**Security:** This is a conceptual demo. Production systems need TLS/SSL, client authentication, potentially Differential Privacy, robust key management, and protection against model poisoning attacks.
+*   **Novelty:** While combining FL and HE isn't entirely new in research, providing a structured, runnable implementation using standard frameworks like Flower and accessible libraries like `python-paillier` serves as a valuable educational and experimental tool. The specific integration pattern (encrypting deltas, serialization for Flower, custom strategy) is a practical approach.
+*   **Generalization:** The core architecture is modular.
+    *   **Different Data/Tasks:** Replace `shared/data_utils.py` and `shared/model.py` to adapt to other domains (e.g., medical imaging, financial fraud). The FL/HE logic in `client.py` and `server.py` remains largely the same. For instance, using a CNN for cancer detection on hospital data would involve changing the model and data loader, but the encryption/aggregation flow could be reused.
+    *   **Different HE Schemes:** Replace `shared/he_utils.py` with wrappers for more performant libraries (SEAL, PALISADE) or different HE schemes (e.g., BFV/CKKS if multiplication is needed, though aggregation typically only requires addition). This would require adapting the serialization and potentially the strategy logic.
+    *   **Cloud Integration:** Real cloud integration would involve replacing `shared/data_utils.py` with connectors to cloud monitoring services (CloudWatch, Azure Monitor, etc.) and potentially deploying clients as containerized services within each cloud environment.
 
-**Model:** Uses a simple Logistic Regression model. More complex threats require more sophisticated models (e.g., LSTMs for sequential logs, GNNs for network graphs, Transformers).
+## Limitations and Future Work
 
-**Scalability:** The simple Flask server and in-memory state need replacement with scalable infrastructure (e.g., message queues, databases, distributed task frameworks) for many clients.
+*   **HE Performance:** `python-paillier` is extremely slow for practical purposes. Real-world deployments require optimized C++ HE libraries (e.g., Microsoft SEAL via TenSEAL for PyTorch) or hardware acceleration.
+*   **Scalability:** The current simulation runs on one machine. Scaling to hundreds or thousands of clients across real networks requires robust infrastructure, optimized communication, and potentially more advanced FL strategies (e.g., hierarchical FL).
+*   **Security:** This implementation assumes secure channel communication (handled by Flower/gRPC, potentially with TLS). It doesn't address advanced attacks like model poisoning or inference attacks, which require additional defenses (e.g., differential privacy, robust aggregation rules). Key management is critical in a real deployment.
+*   **Model Complexity:** The simple MLP might not be sufficient for complex threat detection.
+*   **Serialization Overhead:** Pickling encrypted objects adds overhead. More efficient serialization methods might be needed.
+*   **System Programming:** True system-level optimization (e.g., C/C++ bindings for critical paths, async I/O, direct OS interaction) is not implemented but could significantly improve performance.
 
-**Error Handling:** Basic error handling is included; production systems require more resilience.
+This codebase provides a foundation for research into privacy-preserving distributed machine learning for security and other sensitive applications.
 
----
+What the Entire Code Achieves:
 
-**What the Entire Code Achieves:**
+This project sets up a simulated Federated Learning system designed for privacy-sensitive tasks like cloud security threat detection (or potentially medical analysis).
 
-This project implements a proof-of-concept **Autonomous Cloud Security Orchestrator**. Its core purpose is to **improve threat detection capabilities across multiple, isolated cloud environments without compromising the privacy of local security data**.
+Distributed Training: It allows multiple 'clients' (simulating separate cloud environments or hospitals) to collaboratively train a machine learning model without sharing their raw, sensitive data.
 
-Here's a breakdown of its achievement:
+Privacy via Federated Learning: The core FL setup ensures data stays local to each client. Only model parameters (or updates) are exchanged.
 
-1.  **Distributed Learning:** It leverages **Federated Learning (FL)**, allowing a central orchestrator to build a powerful, global threat detection model by learning from diverse data residing in separate client environments (simulated clouds). Crucially, raw security logs or sensitive local data never leave the client environment.
-2.  **Privacy Preservation:** It employs **Homomorphic Encryption (HE)**, specifically the additively homomorphic Paillier cryptosystem. Clients encrypt their model *updates* (not raw data) before sending them. The server can *aggregate* these encrypted updates directly. Only the *final aggregated result* is decrypted, preventing the server (or an eavesdropper) from learning any individual client's specific contribution.
-3.  **Centralized Orchestration:** The `server` component acts as the central **orchestrator**. It manages the entire process: distributing the model, coordinating learning rounds, securely aggregating updates, refining the global model, and importantly, making decisions based on the model's output.
-4.  **Enhanced Threat Detection:** By combining insights from multiple environments, the global model becomes more robust and generalizable than any model trained on a single environment's data. It can potentially identify widespread or subtle attack patterns that might be missed locally.
-5.  **Autonomous Response (Simulated):** It demonstrates the concept of **autonomy**. Based on the insights from the collaboratively trained global model (e.g., predicting a high likelihood of threats based on certain patterns), the orchestrator can automatically trigger security actions (simulated here by logging warnings, but designed to integrate with real security tools/APIs).
-6.  **System Design Principles:** Although using high-level Python, the structure (client-server, distinct managers for crypto/model, use of concurrency) reflects **system programming** principles necessary for building efficient, maintainable, and scalable distributed security systems.
+Enhanced Privacy via Homomorphic Encryption: It adds a strong layer of privacy by having clients encrypt their model updates before sending them to the central server. The server can add these encrypted updates together without decrypting them individually.
 
-In essence, the code provides a working, albeit simplified, blueprint for a next-generation security system that is collaborative, privacy-preserving, and capable of automated response, tailored for the complexities of multi-cloud or distributed enterprise environments.
+Secure Aggregation: The server aggregates the encrypted updates using the additive property of the Paillier homomorphic encryption scheme.
+
+Central Decryption: Only the final, aggregated sum of updates is decrypted by the server using its private key. This prevents the server from seeing any individual client's contribution.
+
+Global Model Improvement: The server uses the decrypted average update to improve a central 'global' model.
+
+Iteration: The improved global model is sent back to clients for further rounds of local training, iteratively enhancing the model's performance on the collective knowledge while maintaining privacy.
+
+Modularity & Generalization: The code is structured so that the core FL + HE mechanism can be potentially reused for different models, datasets, and tasks where distributed, privacy-preserving machine learning is needed.
+
+Demonstration Platform: It provides a runnable (though performance-limited) platform using standard Python libraries (Flower, PyTorch, python-paillier) to understand and experiment with the concepts of combining Federated Learning and Homomorphic Encryption.
