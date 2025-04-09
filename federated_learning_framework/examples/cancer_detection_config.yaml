@@ -1,0 +1,62 @@
+project_name: "Cancer Detection with Federated Learning and HE"
+task_type: "classification"
+
+data:
+  input_shape: [30]  # Number of features in Wisconsin breast cancer dataset
+  output_shape: [2]  # Binary classification
+  feature_columns: null  # Use all columns except target
+  target_column: "diagnosis"
+  categorical_columns: []
+  normalize: true
+  val_split: 0.2
+  test_split: 0.1
+  batch_size: 32
+  data_path: "data/wisconsin_breast_cancer.csv"
+  preprocessing_steps: ["normalize"]
+
+model:
+  type: "binary_classifier"
+  hidden_layers: [64, 32]
+  activation: "relu"
+  dropout_rate: 0.3
+  optimizer: "adam"
+  learning_rate: 0.001
+  loss: "binary_crossentropy"
+  metrics: ["accuracy", "auc"]
+  l2_regularization: 0.001
+
+federated:
+  rounds: 10
+  min_clients: 2
+  clients_per_round: 2
+  local_epochs: 2
+  aggregation_method: "fedavg"
+  client_learning_rate: 0.01
+  server_learning_rate: 1.0
+  proximal_mu: 0.01
+  communication_rounds: 50
+
+crypto:
+  enabled: true
+  scheme: "CKKS"
+  poly_modulus_degree: 8192
+  coeff_mod_bit_sizes: [40, 20, 40]
+  global_scale: 1099511627776  # 2^40
+  security_level: 128
+  use_bootstrapping: false
+
+privacy:
+  differential_privacy: true
+  dp_epsilon: 3.0
+  dp_delta: 0.00001
+  dp_noise_multiplier: 1.1
+  secure_aggregation: true
+  gradient_clipping: 1.0
+
+system:
+  device: "cpu"
+  num_workers: 4
+  log_level: "INFO"
+  checkpoint_dir: "checkpoints/cancer_detection"
+  result_dir: "results/cancer_detection"
+  seed: 42
