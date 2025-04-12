@@ -1,0 +1,5 @@
+python federated_learning_framework/generate_model_config.py --data federated_learning_framework/examples/data.csv --output model_config.yaml
+python federated_learning_framework/examples/cancer_detection.py --config model_config.yaml --clients 5
+
+python federated_learning_framework/generate_he_config.py --input model_config.yaml --output he_config.yaml
+python cancer_detection.py --config he_config.yaml --clients 5

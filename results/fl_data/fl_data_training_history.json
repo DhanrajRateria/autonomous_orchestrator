@@ -1,0 +1,19 @@
+{
+  "project_name": "fl_data",
+  "config_summary": {
+    "model_type": "binary_classifier",
+    "task_type": "binary_classification",
+    "total_rounds": 20,
+    "clients_per_round": 2,
+    "local_epochs": 3,
+    "client_lr": 0.01,
+    "he_enabled": false,
+    "dp_enabled": false
+  },
+  "start_time": null,
+  "end_time": "2025-04-12T08:26:54.523322",
+  "best_model_round": 0,
+  "best_model_metric_value": -1.0,
+  "final_global_metrics": {},
+  "training_log": []
+}

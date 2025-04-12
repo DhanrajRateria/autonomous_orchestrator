@@ -153,12 +153,12 @@ class TestFederatedLearningIntegration(unittest.TestCase):
             
             # Simulate client submissions
             dummy_update1 = {
-                "weights": [w * 1.01 for w in weights],  # Slightly modified weights
+                "weights": [np.array(w) * 1.01 for w in weights],  # Use numpy arrays
                 "sample_size": 50
             }
-            
+
             dummy_update2 = {
-                "weights": [w * 0.99 for w in weights],  # Slightly modified weights
+                "weights": [np.array(w) * 0.99 for w in weights],
                 "sample_size": 75
             }
             
@@ -201,6 +201,9 @@ class TestFederatedLearningIntegration(unittest.TestCase):
             await self.coordinator.client_heartbeat(client1.client_id)
             await self.coordinator.client_heartbeat(client2.client_id)
             
+            # Save the current model version
+            old_version = self.coordinator.current_model_version
+            
             # Start a federated round
             started = await self.coordinator.trigger_update_round()
             self.assertTrue(started)
@@ -213,9 +216,13 @@ class TestFederatedLearningIntegration(unittest.TestCase):
             model = self.coordinator.models[model_name]
             weights = model.get_weights()
             
+            # Keep weights small to avoid scale issues with homomorphic encryption
+            small_weights1 = [w * 0.001 for w in weights]  # Scale down original weights
+            small_weights2 = [w * 0.002 for w in weights]  # Scale down original weights
+            
             # Encrypt weights
-            encrypted_weights1 = self.crypto_engine.encrypt_model_parameters(weights)
-            encrypted_weights2 = self.crypto_engine.encrypt_model_parameters(weights)
+            encrypted_weights1 = self.crypto_engine.encrypt_model_parameters(small_weights1)
+            encrypted_weights2 = self.crypto_engine.encrypt_model_parameters(small_weights2)
             
             # Simulate client submissions with encrypted weights
             update1 = {
@@ -236,6 +243,9 @@ class TestFederatedLearningIntegration(unittest.TestCase):
             
             # Verify round completed
             self.assertFalse(self.coordinator.round_in_progress)
+            
+            # Verify the model version was updated
+            self.assertGreater(self.coordinator.current_model_version, old_version)
             
             # Stop coordinator
             await self.coordinator.stop()

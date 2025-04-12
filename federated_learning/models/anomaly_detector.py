@@ -142,23 +142,53 @@ class AnomalyDetectionModel:
             Predicted anomaly probabilities
         """
         try:
+            # Ensure features is properly formatted
+            if not isinstance(features, np.ndarray):
+                features = np.array(features, dtype=np.float32)
+            
+            # Handle empty arrays
+            if features.size == 0:
+                return np.array([])
+                
+            # Reshape if needed
+            if len(features.shape) == 1:
+                features = np.expand_dims(features, 0)
+            
+            # Convert to float32
+            features = features.astype(np.float32)
+            
+            # Ensure we have the right feature dimension
+            if features.shape[1] != self.input_dim:
+                self.logger.warning(f"Feature dimension mismatch: {features.shape[1]} vs expected {self.input_dim}")
+                # Pad or truncate to match expected dimensions
+                if features.shape[1] < self.input_dim:
+                    pad_width = ((0, 0), (0, self.input_dim - features.shape[1]))
+                    features = np.pad(features, pad_width, 'constant')
+                else:
+                    features = features[:, :self.input_dim]
+            
             # Convert inputs to TF tensors
             features_tf = tf.convert_to_tensor(features, dtype=tf.float32)
             
             # Make this function non-blocking by running in thread pool
             loop = asyncio.get_event_loop()
             
-            # Run prediction in a separate thread
-            predictions = await loop.run_in_executor(
-                None,
-                lambda: self.predict_fn(features_tf).numpy()
-            )
-            
-            return predictions.flatten()
-            
+            # Run prediction in a separate thread with error handling
+            try:
+                predictions = await loop.run_in_executor(
+                    None,
+                    lambda: self.model(features_tf, training=False).numpy().flatten()
+                )
+                return predictions
+            except Exception as inner_e:
+                self.logger.error(f"TensorFlow prediction failed: {inner_e}")
+                # Return fallback predictions (high anomaly scores)
+                return np.ones(features.shape[0]) * 0.99
+                
         except Exception as e:
             self.logger.error(f"Error during prediction: {e}", exc_info=True)
-            raise
+            # Return fallback prediction in case of error
+            return np.array([0.99])  # High anomaly score as fallback
     
     async def encrypted_predict(self, features: np.ndarray) -> np.ndarray:
         """

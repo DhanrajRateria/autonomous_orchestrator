@@ -1,0 +1,49 @@
+crypto:
+  coeff_mod_bit_sizes:
+  - 40
+  - 20
+  - 40
+  enabled: true
+  global_scale: 1099511627776
+  poly_modulus_degree: 8192
+  scheme: CKKS
+  security_level: 128
+data:
+  batch_size: 16
+  data_path: federated_learning_framework/examples/data.csv
+  input_shape:
+  - 32
+  normalize: true
+  output_shape:
+  - 1
+  target_column: diagnosis
+  test_split: 0.1
+  val_split: 0.2
+federated:
+  client_learning_rate: 0.01
+  clients_per_round: 2
+  communication_rounds: 50
+  local_epochs: 2
+  min_clients: 2
+  proximal_mu: 0.01
+  server_learning_rate: 0.001
+model:
+  activation: relu
+  dropout_rate: 0.2
+  hidden_layers:
+  - 64
+  - 32
+  type: mlp
+privacy:
+  differential_privacy: false
+  dp_delta: 1.0e-05
+  dp_epsilon: 3.0
+  dp_noise_multiplier: 1.0
+  gradient_clipping: 1.0
+project_name: FL Cancer Detection
+system:
+  checkpoint_dir: checkpoints/cancer_detection
+  device: cpu
+  result_dir: results/cancer_detection
+  seed: 42
+task_type: binary_classification

@@ -337,25 +337,39 @@ class FederatedCoordinator:
             
             # Extract updates from results
             updates = []
+            is_encrypted = False  # Track if we're using encrypted updates
+            
             for client_id, result in self.round_results.items():
                 if "weights" in result:
                     updates.append((result["weights"], result.get("sample_size", 1)))
                 elif "encrypted_weights" in result:
-                    updates.append((result["encrypted_weights"], result.get("sample_size", 1)))
+                    updates.append((result, result.get("sample_size", 1)))
+                    is_encrypted = True
+                else:
+                    self.logger.warning(f"Client {client_id} sent invalid update format")
+                    continue
             
             # Aggregate updates
             if updates:
-                new_weights = await self.aggregator.aggregate(updates, homomorphic=self.config.aggregation_method.startswith("secure_"))
-                
-                # Apply aggregated update to model
-                model.set_weights(new_weights)
-                
-                # Update model version
-                self.current_model_version += 1
-                self.logger.info(f"Updated model to version {self.current_model_version}")
-                
-                # Notify clients of new model version
-                asyncio.create_task(self._notify_clients_of_new_model())
+                try:
+                    new_weights = await self.aggregator.aggregate(updates, homomorphic=is_encrypted)
+                    
+                    # Apply aggregated update to model
+                    if new_weights:
+                        model.set_weights(new_weights)
+                        
+                        # Update model version - CRITICAL: make sure to increment version
+                        self.current_model_version += 1
+                        self.logger.info(f"Updated model to version {self.current_model_version}")
+                        
+                        # Notify clients of new model version
+                        asyncio.create_task(self._notify_clients_of_new_model())
+                    else:
+                        self.logger.error("Aggregation failed to return valid weights")
+                except Exception as e:
+                    self.logger.error(f"Error in model aggregation: {e}")
+                    await self._abort_current_round(f"Aggregation error: {str(e)}")
+                    return
             
             # Finalize round
             self.round_in_progress = False

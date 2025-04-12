@@ -1,0 +1,10 @@
+{
+  "project": "FL Cancer Detection",
+  "timestamp": "2025-04-12T07:12:05.224874",
+  "rounds": 50,
+  "best_model": {
+    "accuracy": 0.0,
+    "round": 0
+  },
+  "history": []
+}

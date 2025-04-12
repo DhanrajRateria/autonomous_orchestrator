@@ -1,192 +1,481 @@
+# data_handler.py
 import os
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional, Union
 import logging
-from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler, LabelEncoder
 from PIL import Image
 import glob
 from pathlib import Path
+import torchvision.transforms as transforms # Added for default image transforms
 
-from federated_learning_framework.config import DataConfig
+from federated_learning_framework.config import DataConfig, FrameworkConfig # Assuming config.py is in this path
 
 class TabularDataset(Dataset):
-    """Dataset for tabular data (e.g., cancer detection)"""
-    
-    def __init__(self, features: np.ndarray, targets: np.ndarray):
-        self.features = torch.tensor(features, dtype=torch.float32)
-        self.targets = torch.tensor(targets, dtype=torch.long if targets.ndim == 1 else torch.float32)
-    
+    """Dataset for tabular data"""
+
+    def __init__(self, features: np.ndarray, targets: np.ndarray, target_dtype: torch.dtype):
+        """
+        Initialize dataset with features and targets.
+        Args:
+            features: Feature matrix as numpy array (float32).
+            targets: Target values/classes as numpy array.
+            target_dtype: The torch dtype for the target (e.g., long for classification, float for regression).
+        """
+        if not isinstance(features, np.ndarray) or features.dtype != np.float32:
+            raise TypeError("Features must be a float32 numpy array.")
+        if not isinstance(targets, np.ndarray):
+            raise TypeError("Targets must be a numpy array.")
+
+        self.features = torch.from_numpy(features) # Already float32
+        # Convert targets to the specified torch dtype before creating tensor
+        self.targets = torch.tensor(targets, dtype=target_dtype)
+
     def __len__(self):
         return len(self.features)
-    
+
     def __getitem__(self, idx):
         return self.features[idx], self.targets[idx]
 
 class ImageDataset(Dataset):
     """Dataset for image data"""
-    
+
     def __init__(self, image_paths: List[str], targets: List[int], transform=None):
         self.image_paths = image_paths
-        self.targets = targets
+        self.targets = torch.tensor(targets, dtype=torch.long) # Classification targets are long
         self.transform = transform
-    
+
+        # Define a default transform if none provided
+        if self.transform is None:
+            self.transform = transforms.Compose([
+                transforms.Resize((224, 224)), # Example size, adjust as needed
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]) # ImageNet stats
+            ])
+        self.logger = logging.getLogger("data_handler.image_dataset")
+
+
     def __len__(self):
         return len(self.image_paths)
-    
+
     def __getitem__(self, idx):
         img_path = self.image_paths[idx]
         target = self.targets[idx]
-        
-        # Load image
-        image = Image.open(img_path).convert('RGB')
-        
+
+        try:
+            # Load image using PIL
+            image = Image.open(img_path).convert('RGB') # Ensure 3 channels
+        except Exception as e:
+             self.logger.error(f"Error loading image {img_path}: {e}. Returning dummy data.")
+             # Return dummy data of expected shape to avoid crashing DataLoader
+             # Shape depends on the transform, get it from a dummy tensor
+             dummy_tensor = self.transform(Image.new('RGB', (64, 64))) # Create small dummy image
+             return dummy_tensor, target # Return original target
+
         # Apply transforms
         if self.transform:
             image = self.transform(image)
-        else:
-            # Default transform: convert to tensor and normalize
-            image = torch.tensor(np.array(image).transpose(2, 0, 1) / 255.0, dtype=torch.float32)
-        
-        return image, torch.tensor(target, dtype=torch.long)
+
+        return image, target
+
 
 class DataHandler:
     """
-    Handles data loading, preprocessing and batch creation for federated learning.
+    Handles data loading, preprocessing, and batch creation.
+    Manages tabular and image datasets based on configuration and data path.
     """
-    
-    def __init__(self, config: DataConfig):
-        """
-        Initialize the data handler.
-        
-        Args:
-            config: Data configuration
-        """
+
+    def __init__(self, config: FrameworkConfig):
         self.logger = logging.getLogger("data_handler")
-        self.config = config
-        
-        # Preprocessing components
-        self.scaler = StandardScaler() if config.normalize else None
-        
-        self.logger.info("Data handler initialized")
-    
-    def load_data(self, val_split: float = 0.2, 
-                 test_split: float = 0.1) -> Tuple[DataLoader, DataLoader, DataLoader]:
+        # Store the full config or just the parts needed
+        self.full_config = config
+        self.data_config = config.data # Keep easy access to data section
+        self.task_type = config.model.task_type
+        self.system_seed = config.system.seed # Store the system seed
+
+        self.scaler = StandardScaler() if self.data_config.normalize else None
+        self.label_encoder = None
+        self.original_feature_columns = None
+        self.final_feature_columns = None
+
+        # CHANGE: Use data_config here
+        if not Path(self.data_config.data_path).exists():
+             raise FileNotFoundError(f"Data path specified in config does not exist: {self.data_config.data_path}")
+
+        self.logger.info("Data handler initialized.")
+
+    def load_data(self, data_override_path: Optional[str] = None, val_split: float = 0.2,
+                 test_split: float = 0.1) -> Tuple[DataLoader, Optional[DataLoader], Optional[DataLoader]]:
         """
-        Load dataset and create data loaders.
-        
-        Args:
-            val_split: Fraction of data to use for validation
-            test_split: Fraction of data to use for testing
-            
-        Returns:
-            Tuple of (train_loader, val_loader, test_loader)
+        Loads the dataset specified by data_override_path (for clients) or config.data_path (for server).
+        Splits data into train, validation, and test sets.
+        Returns DataLoaders for each split. Set test_split=0 for clients usually.
         """
-        data_path = self.config.data_path
-        if not data_path or not os.path.exists(data_path):
-            raise ValueError(f"Data path not found: {data_path}")
-        
-        # Determine dataset type from file extension
-        if data_path.endswith(".csv"):
-            dataset = self._load_tabular_data(data_path)
-        elif os.path.isdir(data_path):
-            dataset = self._load_image_data(data_path)
+        data_path = data_override_path if data_override_path else self.data_config.data_path
+        self.logger.info(f"Attempting to load data from: {data_path}")
+
+        if not Path(data_path).exists():
+            raise ValueError(f"Data path does not exist: {data_path}")
+
+        # Determine dataset type
+        path_obj = Path(data_path)
+        if path_obj.is_file() and path_obj.suffix == ".csv":
+            dataset = self._load_tabular_data(str(path_obj))
+            data_type = "tabular"
+        elif path_obj.is_dir():
+            # Assuming image data directory structure (root/class/image.ext)
+             dataset = self._load_image_data(str(path_obj))
+             data_type = "image"
+             # For images, input/output shapes are often fixed by the model (e.g., CNN)
+             # We might need to update config based on loaded image data info if needed.
+             # Example: self.data_config.output_shape = [len(dataset.classes)] if hasattr(dataset, 'classes') else [1]
         else:
-            raise ValueError(f"Unsupported data format: {data_path}")
-        
-        # Split dataset into train, validation and test sets
+            raise ValueError(f"Unsupported data format or path: {data_path}")
+
+        if dataset is None:
+             raise RuntimeError(f"Failed to load dataset from {data_path}")
+
+        # Split dataset
         total_size = len(dataset)
+        if total_size == 0:
+             raise ValueError(f"Loaded dataset from {data_path} is empty.")
+
+        # Ensure splits are valid
+        if not (0 <= val_split < 1 and 0 <= test_split < 1 and val_split + test_split < 1):
+             raise ValueError(f"Invalid split sizes: val={val_split}, test={test_split}. Must be >=0 and sum < 1.")
+
         test_size = int(total_size * test_split)
         val_size = int(total_size * val_split)
         train_size = total_size - val_size - test_size
-        
-        train_dataset, val_dataset, test_dataset = random_split(
-            dataset, [train_size, val_size, test_size]
-        )
-        
-        # Create data loaders
+
+        if train_size <= 0:
+             self.logger.warning(f"Train size is {train_size} after splitting. Check split ratios or dataset size.")
+             # Handle edge case: assign at least one sample if possible, or raise error
+             if total_size > val_size + test_size:
+                  train_size = 1
+                  # Adjust val or test slightly if needed
+                  if val_size > 0 : val_size -=1
+                  elif test_size > 0 : test_size -=1
+                  else: raise ValueError("Cannot create non-empty train split.")
+             else:
+                  raise ValueError("Dataset too small for specified validation/test splits, resulting in zero training samples.")
+
+
+        self.logger.info(f"Splitting data: Total={total_size}, Train={train_size}, Val={val_size}, Test={test_size}")
+
+        # Perform the split
+        # Use a fixed generator for reproducibility if needed (requires seed)
+        generator = torch.Generator().manual_seed(self.system_seed)
+        try:
+            train_dataset, val_dataset, test_dataset = random_split(
+                dataset, [train_size, val_size, test_size], generator=generator # Pass generator
+            )
+        except ValueError as e:
+             self.logger.error(f"Error during random_split (total={total_size}, splits=[{train_size}, {val_size}, {test_size}]): {e}", exc_info=True)
+             raise
+
+        # --- Create DataLoaders ---
+        # Use num_workers from system config
+        num_workers = self.full_config.system.num_workers
+        batch_size = self.data_config.batch_size
+        persistent_workers = num_workers > 0 # Only use persistent workers if num_workers > 0
+
         train_loader = DataLoader(
-            train_dataset, 
-            batch_size=self.config.batch_size, 
+            train_dataset,
+            batch_size=self.data_config.batch_size,
             shuffle=True,
-            num_workers=4
+            num_workers=num_workers,
+            pin_memory=True if num_workers > 0 else False, # Good practice with workers
+            persistent_workers=persistent_workers,
+            drop_last=True # Drop last incomplete batch for consistent batch sizes during training
         )
-        
-        val_loader = DataLoader(
-            val_dataset, 
-            batch_size=self.config.batch_size, 
-            shuffle=False,
-            num_workers=2
-        )
-        
-        test_loader = DataLoader(
-            test_dataset, 
-            batch_size=self.config.batch_size, 
-            shuffle=False,
-            num_workers=2
-        )
-        
-        self.logger.info(f"Data loaded: {train_size} training, {val_size} validation, {test_size} test samples")
-        
-        return train_loader, val_loader, test_loader
-    
-    def _load_tabular_data(self, data_path: str) -> Dataset:
-        """Load tabular data from CSV file"""
-        df = pd.read_csv(data_path)
-        
-        # Process features and target
-        if self.config.target_column:
-            target_col = self.config.target_column
-            feature_cols = [col for col in df.columns if col != target_col]
+
+        val_loader = None
+        if val_size > 0:
+            val_loader = DataLoader(
+                val_dataset,
+                batch_size=self.data_config.batch_size * 2, # Often larger batch size for validation
+                shuffle=False,
+                num_workers=num_workers,
+                pin_memory=True if num_workers > 0 else False,
+                persistent_workers=persistent_workers
+            )
         else:
-            # Assume last column is target
-            feature_cols = list(df.columns[:-1])
-            target_col = df.columns[-1]
-        
-        # Override with configured feature columns if provided
-        if self.config.feature_columns:
-            feature_cols = self.config.feature_columns
-        
-        X = df[feature_cols].values
-        y = df[target_col].values
-        
-        # Apply normalization if enabled
-        if self.config.normalize and self.scaler:
-            X = self.scaler.fit_transform(X)
-        
-        # Create dataset
-        dataset = TabularDataset(X, y)
-        
-        self.logger.info(f"Loaded tabular data from {data_path}: {X.shape[0]} samples, {X.shape[1]} features")
-        
-        return dataset
-    
-    def _load_image_data(self, data_path: str) -> Dataset:
-        """Load image data from directory"""
-        # Assume subdirectories are class names
-        classes = [d for d in os.listdir(data_path) if os.path.isdir(os.path.join(data_path, d))]
-        classes.sort()
-        
-        # Create class to index mapping
-        class_to_idx = {cls: i for i, cls in enumerate(classes)}
-        
-        # Collect image paths and targets
-        image_paths = []
-        targets = []
-        
-        for cls in classes:
-            cls_path = os.path.join(data_path, cls)
-            for img_path in glob.glob(os.path.join(cls_path, "*.jpg")) + \
-                          glob.glob(os.path.join(cls_path, "*.jpeg")) + \
-                          glob.glob(os.path.join(cls_path, "*.png")):
-                image_paths.append(img_path)
-                targets.append(class_to_idx[cls])
-        
-        # Create dataset
-        dataset = ImageDataset(image_paths, targets)
-        
-        self.logger.info(f"Loaded image data from {data_path}: {len(dataset)} samples, {len(classes)} classes")
-        
-        return dataset
+             self.logger.info("No validation set created (val_split=0 or dataset too small).")
+
+
+        test_loader = None
+        if test_size > 0:
+            test_loader = DataLoader(
+                test_dataset,
+                batch_size=self.data_config.batch_size * 2,
+                shuffle=False,
+                num_workers=num_workers,
+                pin_memory=True if num_workers > 0 else False,
+                persistent_workers=persistent_workers
+            )
+        else:
+             self.logger.info("No test set created (test_split=0 or dataset too small).")
+
+        self.logger.info(f"DataLoaders created. Train batches: {len(train_loader)}, Val batches: {len(val_loader) if val_loader else 0}, Test batches: {len(test_loader) if test_loader else 0}")
+
+        return train_loader, val_loader, test_loader
+
+
+    def _load_tabular_data(self, data_path: str) -> Optional[TabularDataset]:
+        """Loads and preprocesses tabular data from a CSV file."""
+        try:
+            df = pd.read_csv(data_path)
+            self.logger.info(f"Loaded DataFrame: {df.shape[0]} rows, {df.shape[1]} columns from {data_path}")
+            if df.empty:
+                 self.logger.error("Loaded DataFrame is empty.")
+                 return None
+
+            # --- Identify Features and Target ---
+            if self.data_config.target_column and self.data_config.target_column in df.columns:
+                target_col = self.data_config.target_column
+                if self.data_config.feature_columns:
+                    # Use specified feature columns, ensure target is not included
+                    feature_cols = [col for col in self.data_config.feature_columns if col != target_col]
+                    # Verify all specified feature columns exist
+                    missing_cols = [col for col in feature_cols if col not in df.columns]
+                    if missing_cols:
+                         raise ValueError(f"Specified feature columns not found in data: {missing_cols}")
+                else:
+                    # Use all columns except target
+                    feature_cols = [col for col in df.columns if col != target_col]
+            else:
+                # Try to infer target (e.g., last column)
+                potential_targets = ['target', 'label', 'class', 'diagnosis', 'y']
+                target_col = df.columns[-1] # Default to last
+                for pt in potential_targets:
+                    if pt in df.columns:
+                         target_col = pt
+                         break
+                self.logger.warning(f"Target column not specified or found, inferring '{target_col}' as target.")
+                feature_cols = [col for col in df.columns if col != target_col]
+                # Update config if target was inferred
+                self.data_config.target_column = target_col
+
+
+            if not feature_cols:
+                 raise ValueError("No feature columns identified.")
+            if target_col not in df.columns:
+                raise ValueError(f"Target column '{target_col}' not found in DataFrame.")
+
+            self.original_feature_columns = list(feature_cols) # Store original names
+
+            # --- Preprocess Features ---
+            X_list = [] # Collect processed feature columns/groups
+            final_feature_names = []
+
+            for col in feature_cols:
+                column_data = df[col]
+                if pd.api.types.is_numeric_dtype(column_data):
+                    # Handle NaNs in numeric columns
+                    if column_data.isnull().any():
+                        mean_val = column_data.mean()
+                        self.logger.warning(f"Numeric column '{col}' has NaNs, filling with mean ({mean_val:.4f}).")
+                        column_data = column_data.fillna(mean_val)
+                    X_list.append(column_data.values.reshape(-1, 1))
+                    final_feature_names.append(col)
+                elif pd.api.types.is_categorical_dtype(column_data) or column_data.dtype == 'object':
+                     # Handle NaNs in categorical columns (e.g., fill with mode or a placeholder)
+                    if column_data.isnull().any():
+                         mode_val = column_data.mode()[0] if not column_data.mode().empty else "Unknown"
+                         self.logger.warning(f"Categorical column '{col}' has NaNs, filling with mode ('{mode_val}').")
+                         column_data = column_data.fillna(mode_val)
+
+                    # One-Hot Encode categorical features
+                    self.logger.info(f"One-hot encoding categorical column '{col}'.")
+                    dummies = pd.get_dummies(column_data, prefix=col, dummy_na=False) # dummy_na=False as we filled NaNs
+                    X_list.append(dummies.values)
+                    final_feature_names.extend(dummies.columns.tolist())
+                else:
+                     self.logger.warning(f"Column '{col}' has unsupported dtype {column_data.dtype}, attempting to convert to numeric.")
+                     try:
+                          column_data_numeric = pd.to_numeric(column_data, errors='coerce')
+                          if column_data_numeric.isnull().any():
+                               mean_val = column_data_numeric.mean()
+                               self.logger.warning(f"Converted column '{col}' has NaNs, filling with mean ({mean_val:.4f}).")
+                               column_data_numeric = column_data_numeric.fillna(mean_val)
+                          X_list.append(column_data_numeric.values.reshape(-1, 1))
+                          final_feature_names.append(col)
+                     except Exception as e:
+                          self.logger.error(f"Could not convert column '{col}' to numeric. Skipping column. Error: {e}")
+
+            if not X_list:
+                 raise ValueError("No features remaining after preprocessing.")
+
+            # Combine processed features
+            X = np.concatenate(X_list, axis=1).astype(np.float32)
+            self.final_feature_columns = final_feature_names
+            self.logger.info(f"Final feature matrix shape: {X.shape}")
+
+
+            # --- Preprocess Target ---
+            y_raw = df[target_col]
+            target_dtype: torch.dtype
+
+            if self.task_type == "regression":
+                self.logger.info(f"Processing target '{target_col}' for regression.")
+                if y_raw.isnull().any():
+                    raise ValueError(f"Target column '{target_col}' for regression contains NaN values.")
+                try:
+                    y = y_raw.values.astype(np.float32)
+                except ValueError:
+                     raise ValueError(f"Target column '{target_col}' cannot be converted to float for regression.")
+                target_dtype = torch.float32
+                # Update output shape if needed (regression usually has 1 output)
+                if self.data_config.output_shape != [1]:
+                     self.logger.warning(f"Task is regression, setting output_shape to [1] from {self.data_config.output_shape}")
+                     self.data_config.output_shape = [1]
+
+            elif self.task_type in ["classification", "binary_classification"]:
+                self.logger.info(f"Processing target '{target_col}' for classification.")
+                 # Handle potential NaNs in target for classification (usually drop or error)
+                if y_raw.isnull().any():
+                    raise ValueError(f"Target column '{target_col}' for classification contains NaN values.")
+
+                # Use LabelEncoder for consistent mapping
+                if self.label_encoder is None:
+                     self.label_encoder = LabelEncoder()
+                     y = self.label_encoder.fit_transform(y_raw)
+                     self.logger.info(f"Fitted LabelEncoder. Classes: {self.label_encoder.classes_}")
+                else:
+                     # Use existing encoder (important for consistency across client datasets)
+                     try:
+                          y = self.label_encoder.transform(y_raw)
+                          self.logger.info("Applied existing LabelEncoder.")
+                     except ValueError as e:
+                          # Handle unseen labels during transform (might happen with non-iid data)
+                          self.logger.error(f"LabelEncoder error: {e}. This might indicate unseen labels in this data partition.")
+                          # Option 1: Raise error (strict)
+                          # raise ValueError(f"Unseen labels encountered in target column '{target_col}'. Ensure all possible labels were seen during initial fit or handle appropriately.") from e
+                          # Option 2: Map unseen to a specific category (e.g., -1 or len(classes)) - requires careful handling in model/loss
+                          # Option 3: Skip rows with unseen labels (might reduce data)
+                          # Let's raise error for now, as it indicates a potential issue with data splitting or understanding.
+                          raise
+
+                num_classes = len(self.label_encoder.classes_)
+                self.logger.info(f"Target distribution: {np.unique(y, return_counts=True)}")
+
+                if self.task_type == "binary_classification":
+                    if num_classes != 2:
+                        raise ValueError(f"Task is 'binary_classification' but found {num_classes} unique classes in target '{target_col}'. Labels: {self.label_encoder.classes_}")
+                    # Target for BCEWithLogitsLoss should be float32 (0.0 or 1.0)
+                    target_dtype = torch.float32
+                    y = y.astype(np.float32) # Convert 0, 1 integers to floats
+                    # Update output shape if needed (binary usually has 1 output neuron)
+                    if self.data_config.output_shape != [1]:
+                         self.logger.warning(f"Task is binary classification, setting output_shape to [1] from {self.data_config.output_shape}")
+                         self.data_config.output_shape = [1]
+                else: # Multi-class classification
+                    # Target for CrossEntropyLoss should be long (class indices)
+                    target_dtype = torch.long
+                    y = y.astype(np.int64) # Ensure integer type for indices
+                    # Update output shape if needed
+                    if self.data_config.output_shape != [num_classes]:
+                         self.logger.warning(f"Task is classification, setting output_shape to [{num_classes}] from {self.data_config.output_shape}")
+                         self.data_config.output_shape = [num_classes]
+
+            else:
+                raise ValueError(f"Unsupported task_type: {self.task_type}")
+
+
+            # --- Normalize Features ---
+            if self.data_config.normalize and self.scaler:
+                # Fit scaler only on the first call (e.g., on server's full data), then transform
+                if not hasattr(self.scaler, "mean_"): # Check if scaler has been fitted
+                     self.logger.info("Fitting StandardScaler on features.")
+                     X = self.scaler.fit_transform(X)
+                else:
+                     self.logger.info("Applying existing StandardScaler.")
+                     X = self.scaler.transform(X)
+            elif self.data_config.normalize and not self.scaler:
+                 self.logger.warning("Normalization enabled but scaler is None. Skipping normalization.")
+
+
+            # --- Update Config Shapes ---
+            final_input_dim = X.shape[1]
+            if self.data_config.input_shape != [final_input_dim]:
+                self.logger.warning(f"Input shape mismatch after preprocessing. Updating config input_shape from {self.data_config.input_shape} to [{final_input_dim}]")
+                self.data_config.input_shape = [final_input_dim]
+
+            # --- Create Dataset ---
+            self.logger.info(f"Creating TabularDataset with feature shape {X.shape} and target shape {y.shape}, target dtype {target_dtype}")
+            dataset = TabularDataset(X, y, target_dtype)
+            return dataset
+
+        except Exception as e:
+            self.logger.error(f"Error loading or processing tabular data from {data_path}: {e}", exc_info=True)
+            return None
+
+
+    def _load_image_data(self, data_path: str) -> Optional[ImageDataset]:
+        """Loads image data assuming 'data_path/class_name/image.jpg' structure."""
+        self.logger.info(f"Loading image data from directory: {data_path}")
+        try:
+            root_dir = Path(data_path)
+            classes = sorted([d.name for d in root_dir.iterdir() if d.is_dir()])
+            if not classes:
+                 raise ValueError(f"No class subdirectories found in {data_path}")
+
+            class_to_idx = {cls_name: i for i, cls_name in enumerate(classes)}
+            self.logger.info(f"Found {len(classes)} classes: {classes}")
+
+            image_paths = []
+            targets = []
+            supported_extensions = ["*.jpg", "*.jpeg", "*.png", "*.bmp", "*.gif"]
+
+            for cls_name in classes:
+                class_idx = class_to_idx[cls_name]
+                class_dir = root_dir / cls_name
+                img_count = 0
+                for ext in supported_extensions:
+                    for img_path in class_dir.glob(ext):
+                        image_paths.append(str(img_path))
+                        targets.append(class_idx)
+                        img_count += 1
+                self.logger.debug(f"Found {img_count} images for class '{cls_name}'")
+
+            if not image_paths:
+                 raise ValueError(f"No images found in class subdirectories of {data_path}")
+
+            self.logger.info(f"Found {len(image_paths)} total images across {len(classes)} classes.")
+
+            # Determine input/output shapes from data
+            # Output shape is number of classes
+            self.data_config.output_shape = [len(classes)]
+            # Input shape depends on transforms (e.g., ToTensor + Normalize -> [C, H, W])
+            # We might need to pass a sample image through transforms to know the exact shape
+            # Or rely on a standard shape defined in the model config / task context
+            # For now, let's assume a default or rely on config being correct
+            # Example: Get shape after default transform
+            if ImageDataset.default_transform:
+                 try:
+                      sample_img_path = image_paths[0]
+                      sample_img = Image.open(sample_img_path).convert('RGB')
+                      sample_tensor = ImageDataset.default_transform(sample_img)
+                      self.data_config.input_shape = list(sample_tensor.shape)
+                      self.logger.info(f"Inferred image input shape from default transform: {self.data_config.input_shape}")
+                 except Exception as e:
+                      self.logger.warning(f"Could not infer image input shape: {e}. Using config value: {self.data_config.input_shape}")
+
+
+            # Create dataset (transforms are handled within ImageDataset)
+            dataset = ImageDataset(image_paths, targets) # Use default transform for now
+            setattr(dataset, 'classes', classes) # Store classes list in dataset object
+
+            return dataset
+
+        except Exception as e:
+            self.logger.error(f"Error loading image data from {data_path}: {e}", exc_info=True)
+            return None
+
+    def get_feature_names(self) -> Optional[List[str]]:
+        """Returns the final list of feature names after preprocessing."""
+        return self.final_feature_columns

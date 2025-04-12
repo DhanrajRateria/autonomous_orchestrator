@@ -12,10 +12,14 @@ from datetime import datetime
 import uuid
 import os
 import jwt
-
+import portpicker
+from pyngrok import ngrok
+import os
+from pyngrok import conf
 from core.orchestrator import SecurityOrchestrator
 from core.config import OrchestrationConfig
 
+conf.get_default().auth_token = "2vUoxHRNif5Z6Ku1D8wrewz3q9y_4CorXSX7xDe1gzJLMo3xR"
 class APIServer:
     """
     API server for the security orchestrator providing RESTful endpoints
@@ -304,22 +308,29 @@ class APIServer:
             self.logger.error(f"Error initializing orchestrator: {e}", exc_info=True)
             self.initialized = False
     
-    async def start_server(self, host: str = "0.0.0.0", port: int = 8080):
-        """
-        Start the API server.
-        
-        Args:
-            host: Host IP to bind to
-            port: Port to listen on
-        """
-        config = uvicorn.Config(self.app, host=host, port=port)
-        server = uvicorn.Server(config)
-        
-        # Start the server in the current event loop
-        self.logger.info(f"Starting API server on {host}:{port}")
-        await server.serve()
+    async def start_server(self, host: str = "0.0.0.0", port: Optional[int] = None):
+      """
+      Start the API server, optionally picking a free port and making it public using ngrok.
+      
+      Args:
+          host: Host IP to bind to
+          port: Port to listen on (if None, pick a free one automatically)
+      """
+      if port is None:
+          port = portpicker.pick_unused_port()
+          self.logger.info(f"Picked free port: {port}")
+
+      # Start ngrok tunnel
+      public_url = ngrok.connect(port, bind_tls=True)
+      self.logger.info(f"Public URL: {public_url}")
+
+      config = uvicorn.Config(self.app, host=host, port=port)
+      server = uvicorn.Server(config)
+
+      self.logger.info(f"Starting API server on {host}:{port}")
+      await server.serve()
     
-    def run(self, host: str = "0.0.0.0", port: int = 8080):
+    def run(self, host: str = "0.0.0.0", port: int = 8088):
         """
         Run the API server (blocking call).
         

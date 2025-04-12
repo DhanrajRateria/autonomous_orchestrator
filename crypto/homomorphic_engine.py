@@ -31,10 +31,7 @@ class HomomorphicEngine:
         # TenSEAL context parameters
         self.poly_modulus_degree = 8192
         self.context = None
-        self.public_key = None
         self.secret_key = None
-        self.relin_keys = None
-        self.galois_keys = None
         
         # Paths for key storage (in production, use secure key management)
         self.keys_dir = Path("./keys")
@@ -65,23 +62,20 @@ class HomomorphicEngine:
         self.logger.info("Generating TenSEAL CKKS context")
         start_time = time.time()
         
-        # Create TenSEAL context
+        # Create TenSEAL context with more appropriate parameters
         self.context = ts.context(
             ts.SCHEME_TYPE.CKKS,
             poly_modulus_degree=self.poly_modulus_degree,
-            coeff_mod_bit_sizes=[40, 20, 40]
+            coeff_mod_bit_sizes=[60, 40, 40, 60]  # Better scale management
         )
         
         # Set up the context
         self.context.generate_galois_keys()
-        self.context.global_scale = 2**40
+        self.context.generate_relin_keys()
+        self.context.global_scale = 2**40  # More moderate scale
         
-        # Extract keys (in production, use proper key management)
+        # Save the secret key before making context public
         self.secret_key = self.context.secret_key()
-        self.context.make_context_public()
-        self.public_key = self.context
-        self.galois_keys = self.context.galois_keys()
-        self.relin_keys = self.context.relin_keys()
         
         # Save keys
         self._save_keys()
@@ -92,15 +86,16 @@ class HomomorphicEngine:
     def _save_keys(self):
         """Save encryption keys (for demo purposes - use secure key mgmt in production)"""
         try:
-            # Save context
-            context_bytes = self.context.serialize(save_secret_key=False)
-            with open(self.keys_dir / "context.bin", "wb") as f:
-                f.write(context_bytes)
+            # Save context with secret key
+            context_with_sk = self.context.serialize(save_secret_key=True)
+            with open(self.keys_dir / "context_with_sk.bin", "wb") as f:
+                f.write(context_with_sk)
             
-            # Save secret key (in real system, store securely!)
-            secret_key_bytes = self.secret_key
-            with open(self.keys_dir / "secret_key.bin", "wb") as f:
-                f.write(secret_key_bytes)
+            # Save context without secret key (public)
+            self.context.make_context_public()
+            context_public = self.context.serialize(save_secret_key=False)
+            with open(self.keys_dir / "context_public.bin", "wb") as f:
+                f.write(context_public)
             
             self.logger.info("Encryption keys saved successfully")
         except Exception as e:
@@ -110,15 +105,11 @@ class HomomorphicEngine:
     def _load_keys(self):
         """Load encryption keys from files"""
         try:
-            # Load context (public key)
-            with open(self.keys_dir / "context.bin", "rb") as f:
+            # Load context with secret key for decryption operations
+            with open(self.keys_dir / "context_with_sk.bin", "rb") as f:
                 context_bytes = f.read()
             self.context = ts.context_from(context_bytes)
-            self.public_key = self.context
-            
-            # Load secret key
-            with open(self.keys_dir / "secret_key.bin", "rb") as f:
-                self.secret_key = f.read()
+            self.secret_key = self.context.secret_key()
             
             self.logger.info("Encryption keys loaded successfully")
         except Exception as e:
@@ -127,7 +118,7 @@ class HomomorphicEngine:
     
     def _keys_exist(self) -> bool:
         """Check if encryption keys already exist"""
-        return (self.keys_dir / "context.bin").exists() and (self.keys_dir / "secret_key.bin").exists()
+        return (self.keys_dir / "context_with_sk.bin").exists() and (self.keys_dir / "context_public.bin").exists()
     
     def encrypt_vector(self, vector: List[float]) -> CKKSVector:
         """
@@ -157,19 +148,15 @@ class HomomorphicEngine:
             List of decrypted floating point values
         """
         try:
-            # Create a temporary context with the secret key
-            temp_ctx = ts.context_from(self.context.serialize(save_secret_key=False))
-            temp_ctx.make_context_public()
-            temp_ctx.set_secret_key(self.secret_key)
-            
-            # Deserialize the encrypted vector with the temporary context
+            # Use the context with the secret key that's already loaded
+            # No need to set_secret_key as it's already in the context
             decrypted = encrypted_vector.decrypt()
             return decrypted
         except Exception as e:
             self.logger.error(f"Error decrypting vector: {e}")
             raise
     
-    def encrypt_model_parameters(self, parameters: List[np.ndarray]) -> List[Any]:
+    def encrypt_model_parameters(self, parameters: List[np.ndarray]) -> List[Dict[str, Any]]:
         """
         Encrypt model parameters for secure federated learning.
         
@@ -251,7 +238,7 @@ class HomomorphicEngine:
         
         return decrypted_params
     
-    def homomorphic_add(self, enc_a: Any, enc_b: Any) -> Any:
+    def homomorphic_add(self, enc_a: CKKSVector, enc_b: CKKSVector) -> CKKSVector:
         """
         Perform homomorphic addition on encrypted vectors.
         
@@ -269,7 +256,7 @@ class HomomorphicEngine:
             self.logger.error(f"Error in homomorphic addition: {e}")
             raise
     
-    def homomorphic_multiply_plain(self, enc_a: Any, scalar: float) -> Any:
+    def homomorphic_multiply_plain(self, enc_a: CKKSVector, scalar: float) -> CKKSVector:
         """
         Multiply an encrypted vector by an unencrypted scalar.
         
@@ -281,13 +268,16 @@ class HomomorphicEngine:
             Encrypted result of multiplication
         """
         try:
-            result = enc_a * scalar
+            # For numerical stability, we need to rescale the scalar
+            # to be within a safe range for CKKS
+            safe_scalar = float(scalar)  # Ensure it's a float
+            result = enc_a * safe_scalar
             return result
         except Exception as e:
             self.logger.error(f"Error in homomorphic plain multiplication: {e}")
             raise
     
-    def weighted_aggregation(self, encrypted_vectors: List[Tuple[Any, float]]) -> Any:
+    def weighted_aggregation(self, encrypted_vectors: List[Tuple[CKKSVector, float]]) -> CKKSVector:
         """
         Perform weighted aggregation of encrypted vectors.
         
@@ -307,6 +297,13 @@ class HomomorphicEngine:
                 # Handle serialized format
                 enc_vector = self._deserialize_encrypted(enc_vector["data"])
             
+            # Ensure weight is in a safe range for CKKS
+            # For numerical stability in CKKS
+            if weight < 0.01:
+                weight = 0.01
+            elif weight > 100:
+                weight = 100
+                
             result = self.homomorphic_multiply_plain(enc_vector, weight)
             
             # Add the remaining weighted vectors
@@ -315,6 +312,12 @@ class HomomorphicEngine:
                     # Handle serialized format
                     enc_vector = self._deserialize_encrypted(enc_vector["data"])
                 
+                # Ensure weight is in a safe range for CKKS
+                if weight < 0.01:
+                    weight = 0.01
+                elif weight > 100:
+                    weight = 100
+                    
                 weighted = self.homomorphic_multiply_plain(enc_vector, weight)
                 result = self.homomorphic_add(result, weighted)
             

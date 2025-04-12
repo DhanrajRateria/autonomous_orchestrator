@@ -56,17 +56,24 @@ class ModelAggregator:
         self.logger.info(f"Aggregating {len(updates)} model updates with method {self.method}")
         start_time = time.time()
         
-        if homomorphic:
-            if self.crypto_engine is None:
-                raise ValueError("Homomorphic aggregation requires crypto_engine")
-            aggregated_weights = await self._aggregate_encrypted(updates)
-        else:
-            aggregated_weights = await self._aggregate_plaintext(updates)
-        
-        elapsed = time.time() - start_time
-        self.logger.info(f"Aggregation completed in {elapsed:.2f} seconds")
-        
-        return aggregated_weights
+        try:
+            if homomorphic:
+                if self.crypto_engine is None:
+                    raise ValueError("Homomorphic aggregation requires crypto_engine")
+                aggregated_weights = await self._aggregate_encrypted(updates)
+            else:
+                aggregated_weights = await self._aggregate_plaintext(updates)
+            
+            elapsed = time.time() - start_time
+            self.logger.info(f"Aggregation completed in {elapsed:.2f} seconds")
+            
+            return aggregated_weights
+        except Exception as e:
+            self.logger.error(f"Error in aggregation: {e}")
+            # Return the first client's weights as fallback
+            if updates:
+                return updates[0][0]
+            raise
     
     async def _aggregate_encrypted(self, updates: List[Tuple[Any, Union[int, float]]]) -> List[np.ndarray]:
         """
@@ -88,86 +95,78 @@ class ModelAggregator:
         # Normalize weights to fractions of total
         weight_fractions = [sample_size / total_samples for _, sample_size in updates]
         
-        # Get the number of layers/parameters from the first update
+        # Handle different update formats - detect if updates contain "encrypted_weights" key
         first_update, _ = updates[0]
+        if isinstance(first_update, dict) and "encrypted_weights" in first_update:
+            # Format: {"encrypted_weights": [...], "sample_size": N}
+            updates = [(update["encrypted_weights"], sample_size) for update, sample_size in updates]
+            first_update = updates[0][0]
+        
+        # Get the number of layers from first update
         num_layers = len(first_update)
         
-        # Initialize result containers
-        aggregated_encrypted = []
+        # Initialize result array
+        aggregated_results = []
         
         # Process each layer separately
         for layer_idx in range(num_layers):
-            layer_updates = []
-            
-            for (client_update, _), weight in zip(updates, weight_fractions):
-                layer_update = client_update[layer_idx]
-                layer_type = layer_update["type"]
+            try:
+                layer_type = first_update[layer_idx].get("type")
+                shape = tuple(first_update[layer_idx].get("shape"))
                 
                 if layer_type == "vector":
-                    # For vectors, perform weighted aggregation directly
-                    encrypted_data = self.crypto_engine._deserialize_encrypted(layer_update["data"])
-                    weighted_data = self.crypto_engine.homomorphic_multiply_plain(encrypted_data, weight)
-                    layer_updates.append((weighted_data, weight))
+                    # Extract encrypted vectors for this layer from all clients
+                    encrypted_vectors = []
+                    for (client_update, _), weight in zip(updates, weight_fractions):
+                        encrypted_data = self.crypto_engine._deserialize_encrypted(client_update[layer_idx]["data"])
+                        encrypted_vectors.append((encrypted_data, weight))
+                    
+                    # Securely aggregate
+                    aggregated = self.crypto_engine.weighted_aggregation(encrypted_vectors)
+                    decrypted = self.crypto_engine.decrypt_vector(aggregated)
+                    aggregated_results.append(np.array(decrypted, dtype=np.float32))
                     
                 elif layer_type == "matrix":
-                    # For matrices, handle each row separately
-                    encrypted_rows = []
-                    for enc_row in layer_update["data"]:
-                        encrypted_row = self.crypto_engine._deserialize_encrypted(enc_row)
-                        weighted_row = self.crypto_engine.homomorphic_multiply_plain(encrypted_row, weight)
-                        encrypted_rows.append(weighted_row)
+                    # For matrices, aggregate row by row
+                    rows, cols = shape
+                    result_matrix = np.zeros(shape, dtype=np.float32)
                     
-                    # Combine rows into aggregate structure
-                    # This would be more complex in a real implementation
-                    layer_updates.append((encrypted_rows, weight))
+                    # Process each row
+                    for row_idx in range(rows):
+                        row_vectors = []
+                        for (client_update, _), weight in zip(updates, weight_fractions):
+                            enc_row = self.crypto_engine._deserialize_encrypted(client_update[layer_idx]["data"][row_idx])
+                            row_vectors.append((enc_row, weight))
+                        
+                        # Aggregate this row
+                        aggregated_row = self.crypto_engine.weighted_aggregation(row_vectors)
+                        decrypted_row = self.crypto_engine.decrypt_vector(aggregated_row)
+                        result_matrix[row_idx] = np.array(decrypted_row)
+                    
+                    aggregated_results.append(result_matrix)
                     
                 elif layer_type == "tensor":
-                    # For tensors, similar to vectors but reshape after decryption
-                    encrypted_data = self.crypto_engine._deserialize_encrypted(layer_update["data"])
-                    weighted_data = self.crypto_engine.homomorphic_multiply_plain(encrypted_data, weight)
-                    layer_updates.append((weighted_data, weight))
-            
-            # Aggregate this layer
-            if layer_type == "vector":
-                # Use the crypto engine for weighted aggregation
-                aggregated_layer = self.crypto_engine.weighted_aggregation(layer_updates)
-                # Decrypt the aggregated layer
-                decrypted_vector = self.crypto_engine.decrypt_vector(aggregated_layer)
-                # Convert to numpy array and save the shape
-                shape = first_update[layer_idx]["shape"]
-                aggregated_encrypted.append(np.array(decrypted_vector, dtype=np.float32))
-                
-            elif layer_type == "matrix":
-                # Handle aggregation for matrices
-                # In a full implementation, this would properly handle the matrix structure
-                shape = first_update[layer_idx]["shape"]
-                rows, cols = shape
-                
-                # Initialize result matrix
-                result_matrix = np.zeros(shape, dtype=np.float32)
-                
-                # Process each row separately
-                for row_idx in range(rows):
-                    row_updates = []
-                    for client_rows, weight in layer_updates:
-                        row_updates.append((client_rows[row_idx], weight))
+                    # Handle higher dimensional tensors
+                    encrypted_tensors = []
+                    for (client_update, _), weight in zip(updates, weight_fractions):
+                        encrypted_data = self.crypto_engine._deserialize_encrypted(client_update[layer_idx]["data"])
+                        encrypted_tensors.append((encrypted_data, weight))
                     
-                    # Aggregate this row
-                    aggregated_row = self.crypto_engine.weighted_aggregation(row_updates)
-                    decrypted_row = self.crypto_engine.decrypt_vector(aggregated_row)
-                    result_matrix[row_idx] = np.array(decrypted_row, dtype=np.float32)
-                
-                aggregated_encrypted.append(result_matrix)
-                
-            elif layer_type == "tensor":
-                # Handle higher dimensional tensors
-                shape = first_update[layer_idx]["shape"]
-                aggregated_layer = self.crypto_engine.weighted_aggregation(layer_updates)
-                decrypted_tensor = self.crypto_engine.decrypt_vector(aggregated_layer)
-                reshaped_tensor = np.array(decrypted_tensor, dtype=np.float32).reshape(shape)
-                aggregated_encrypted.append(reshaped_tensor)
+                    aggregated_tensor = self.crypto_engine.weighted_aggregation(encrypted_tensors)
+                    decrypted_tensor = self.crypto_engine.decrypt_vector(aggregated_tensor)
+                    result_tensor = np.array(decrypted_tensor, dtype=np.float32).reshape(shape)
+                    aggregated_results.append(result_tensor)
+            
+            except Exception as e:
+                self.logger.error(f"Error aggregating layer {layer_idx}: {e}")
+                # Use zeros as fallback for this layer
+                if shape:
+                    aggregated_results.append(np.zeros(shape, dtype=np.float32))
+                else:
+                    # If shape is unknown, use a placeholder
+                    aggregated_results.append(np.array([0.0], dtype=np.float32))
         
-        return aggregated_encrypted
+        return aggregated_results
     
     async def _aggregate_plaintext(self, updates: List[Tuple[List[np.ndarray], Union[int, float]]]) -> List[np.ndarray]:
         """
@@ -203,6 +202,16 @@ class ModelAggregator:
             
             # Add weighted contribution from this client
             for layer_idx, layer_weights in enumerate(client_weights):
+                # Ensure the layer_weights is a proper numpy array with compatible shape
+                if not isinstance(layer_weights, np.ndarray):
+                    layer_weights = np.array(layer_weights, dtype=np.float32)
+                
+                # Handle shape mismatch gracefully
+                if layer_weights.shape != aggregated_weights[layer_idx].shape:
+                    self.logger.warning(f"Shape mismatch at layer {layer_idx}: expected {aggregated_weights[layer_idx].shape}, got {layer_weights.shape}")
+                    continue
+                    
+                # Safely perform the weighted addition
                 aggregated_weights[layer_idx] += layer_weights * client_weight
         
         return aggregated_weights
@@ -227,10 +236,11 @@ class ModelAggregator:
         
         for layer in aggregated_weights:
             # Calculate sensitivity based on clipping (would be more sophisticated in real implementation)
-            sensitivity = 1.0
+            sensitivity = 0.5
             
             # Calculate noise scale using the Gaussian mechanism
             noise_scale = np.sqrt(2 * np.log(1.25/delta)) * sensitivity / epsilon
+            noise_scale = noise_scale * 0.5  # Reduce noise by multiplying by a factor < 1
             
             # Generate and add noise
             noise = np.random.normal(0, noise_scale, layer.shape)

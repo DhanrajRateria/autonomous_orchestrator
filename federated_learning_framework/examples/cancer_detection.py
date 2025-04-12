@@ -1,3 +1,4 @@
+# cancer_detection.py
 import asyncio
 import argparse
 import logging
@@ -5,177 +6,473 @@ import os
 import sys
 import pandas as pd
 import numpy as np
+import time
 from pathlib import Path
 from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from typing import Dict, Optional, Any
+from datetime import datetime
+# --- Setup Project Root Path ---
+# Assuming this script is in framework_root/examples/cancer_detection/
+# Add framework_root to sys.path
+try:
+    # More robust way to find project root assuming a specific structure
+    # Adjust based on your actual project layout
+    project_root = Path(__file__).resolve().parent.parent.parent
+    if project_root.name == 'federated_learning_framework': # Or check for a known file/dir
+         sys.path.insert(0, str(project_root))
+         print(f"Added project root to sys.path: {project_root}")
+    else:
+         # Fallback if structure is different
+         script_dir = Path(__file__).resolve().parent
+         sys.path.insert(0, str(script_dir.parent.parent)) # Go up two levels
+         print(f"Added parent's parent directory to sys.path: {script_dir.parent.parent}")
+except Exception as e:
+     print(f"Warning: Could not automatically add project root to sys.path. Ensure framework modules are importable. Error: {e}")
 
-# Add parent directory to path to import framework
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# --- Framework Imports ---
+try:
+    from federated_learning_framework.config import FrameworkConfig
+    from federated_learning_framework.server import FederatedServer
+    from federated_learning_framework.client import FederatedClient
+except ImportError as e:
+    print(f"Error importing framework components: {e}")
+    print("Please ensure the script is run from the correct directory or the framework path is in sys.path.")
+    sys.exit(1)
 
-from federated_learning_framework.config import FrameworkConfig
-from federated_learning_framework.server import FederatedServer
-from federated_learning_framework.client import FederatedClient
 
-# Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-logger = logging.getLogger("cancer_detection")
+# --- Logging Setup ---
+# Moved config loading after argparse to set log level from config
+logger = logging.getLogger("cancer_detection_main")
 
-async def prepare_data(num_clients: int = 5):
+
+def setup_logging(log_level_str: str):
+    log_level = getattr(logging, log_level_str.upper(), logging.INFO)
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)-25s - %(levelname)-8s - %(message)s',
+        handlers=[logging.StreamHandler(sys.stdout)], # Ensure logs go to stdout
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    # Set higher level for noisy libraries if needed
+    logging.getLogger("asyncio").setLevel(logging.WARNING)
+    logging.getLogger("PIL").setLevel(logging.WARNING)
+
+
+async def prepare_data(num_clients: int, base_data_path: str, target_column: str, task_type: str, data_dir: Path = Path("client_data")) -> Dict[str, str]:
     """
-    Prepare and split the Wisconsin Breast Cancer dataset for federated learning.
-    
+    Prepares and splits data for clients (potentially non-IID).
+    Saves client data to separate files.
+
     Args:
-        num_clients: Number of clients to simulate
-        
+        num_clients: Number of client datasets to create.
+        base_data_path: Path to the full dataset CSV file.
+        target_column: Name of the target column in the CSV.
+        task_type: The type of task ('binary_classification', 'classification', 'regression').
+        data_dir: Directory to save individual client data files.
+
     Returns:
-        Dictionary of client data paths
+        Dictionary mapping client_id to its data file path.
     """
-    # Create data directory if not exists
-    data_dir = Path("data")
-    data_dir.mkdir(exist_ok=True)
-    
-    # Load breast cancer dataset
-    cancer = load_breast_cancer()
-    X = cancer.data
-    y = cancer.target
-    
-    # Convert to dataframe
-    df = pd.DataFrame(X, columns=cancer.feature_names)
-    df['diagnosis'] = y
-    
-    # Save full dataset for server validation
-    full_path = data_dir / "wisconsin_breast_cancer.csv"
-    df.to_csv(full_path, index=False)
-    logger.info(f"Saved complete dataset to {full_path}")
-    
-    # Split data for each client (non-IID)
-    # For demonstration, we create data with different class distributions for each client
+    logger.info(f"Preparing data for {num_clients} clients from {base_data_path}...")
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        df = pd.read_csv(base_data_path)
+        if df.empty:
+            raise ValueError("Base dataset is empty.")
+        logger.info(f"Full dataset loaded: {df.shape}")
+    except Exception as e:
+        logger.error(f"Failed to load base dataset: {e}", exc_info=True)
+        raise
+
+    if target_column not in df.columns:
+        raise ValueError(f"Target column '{target_column}' not found in the dataset.")
+
+
+    # --- Handle Non-IID splitting for Binary Classification ---
     client_data_paths = {}
-    
-    # Split patients with and without cancer
-    cancer_df = df[df['diagnosis'] == 1]
-    non_cancer_df = df[df['diagnosis'] == 0]
-    
-    for i in range(1, num_clients + 1):
-        client_id = f"client_{i}"
-        
-        # Create different ratios of cancer/non-cancer data for each client
-        # to simulate non-IID data distribution
-        cancer_ratio = 0.2 + (i - 1) * 0.1  # Ranges from 0.2 to 0.6
-        
-        # Calculate samples of each class for this client
-        total_samples = len(df) // num_clients
-        cancer_samples = int(total_samples * cancer_ratio)
-        non_cancer_samples = total_samples - cancer_samples
-        
-        # Sample from each class
-        client_cancer = cancer_df.sample(cancer_samples)
-        client_non_cancer = non_cancer_df.sample(non_cancer_samples)
-        
-        # Combine and shuffle
-        client_df = pd.concat([client_cancer, client_non_cancer]).sample(frac=1)
-        
-        # Save client data
+    if task_type == "binary_classification":
+        logger.info("Applying non-IID data split for binary classification...")
+        # Ensure target is numeric (0/1)
+        if not pd.api.types.is_numeric_dtype(df[target_column]):
+             logger.warning(f"Target column '{target_column}' is not numeric. Attempting LabelEncoding.")
+             le = LabelEncoder()
+             try:
+                  df[target_column] = le.fit_transform(df[target_column])
+                  if len(le.classes_) != 2:
+                      raise ValueError(f"LabelEncoder found {len(le.classes_)} classes, expected 2 for binary.")
+                  logger.info(f"Applied LabelEncoder. Mapped classes: {le.classes_} to [0, 1]")
+             except Exception as e:
+                   logger.error(f"Failed to encode non-numeric binary target: {e}", exc_info=True)
+                   raise
+
+        # Separate classes
+        positive_df = df[df[target_column] == 1]
+        negative_df = df[df[target_column] == 0]
+        logger.info(f"Class distribution: {len(positive_df)} positive (1), {len(negative_df)} negative (0)")
+
+        if len(positive_df) == 0 or len(negative_df) == 0:
+             logger.warning("Dataset contains only one class. Non-IID split will be effectively IID.")
+             # Fallback to random split
+             task_type = "classification" # Treat as random split case
+
+        else:
+             # Distribute data non-IID
+             # Example: Skew distribution across clients
+             samples_per_client = len(df) // num_clients
+             remaining_pos = len(positive_df)
+             remaining_neg = len(negative_df)
+             pos_indices = positive_df.index.tolist()
+             neg_indices = negative_df.index.tolist()
+             np.random.shuffle(pos_indices)
+             np.random.shuffle(neg_indices)
+
+             pos_idx_ptr = 0
+             neg_idx_ptr = 0
+
+
+             for i in range(num_clients):
+                 client_id = f"client_{i+1}"
+                 # Create skewed ratios (e.g., dirichlet distribution could be better)
+                 # Simple linear skew for example:
+                 target_pos_ratio = 0.1 + (i / (num_clients -1 if num_clients > 1 else 1)) * 0.8 # Skew from 10% to 90% positive
+
+                 num_samples_client = samples_per_client if i < num_clients - 1 else len(df) - (samples_per_client * (num_clients - 1)) # Give remainder to last client
+
+                 num_pos = int(num_samples_client * target_pos_ratio)
+                 num_neg = num_samples_client - num_pos
+
+                 # Take available samples without replacement first
+                 client_pos_indices = pos_indices[pos_idx_ptr : pos_idx_ptr + num_pos]
+                 client_neg_indices = neg_indices[neg_idx_ptr : neg_idx_ptr + num_neg]
+
+                 pos_idx_ptr += len(client_pos_indices)
+                 neg_idx_ptr += len(client_neg_indices)
+
+                 # Handle cases where we run out of samples (oversampling with replacement) - less ideal
+                 if len(client_pos_indices) < num_pos:
+                      logger.warning(f"{client_id}: Not enough unique positive samples ({len(client_pos_indices)}/{num_pos}). Sampling with replacement.")
+                      needed = num_pos - len(client_pos_indices)
+                      client_pos_indices.extend(np.random.choice(positive_df.index, needed, replace=True).tolist()) # Sample from all positive indices
+                 if len(client_neg_indices) < num_neg:
+                      logger.warning(f"{client_id}: Not enough unique negative samples ({len(client_neg_indices)}/{num_neg}). Sampling with replacement.")
+                      needed = num_neg - len(client_neg_indices)
+                      client_neg_indices.extend(np.random.choice(negative_df.index, needed, replace=True).tolist()) # Sample from all negative indices
+
+                 client_indices = client_pos_indices + client_neg_indices
+                 np.random.shuffle(client_indices) # Shuffle indices within client data
+
+                 client_df = df.loc[client_indices]
+
+                 client_path = data_dir / f"{client_id}_data.csv"
+                 client_df.to_csv(client_path, index=False)
+                 client_data_paths[client_id] = str(client_path)
+                 logger.info(f"Created dataset for {client_id}: {len(client_df)} samples ({len(client_pos_indices)} pos, {len(client_neg_indices)} neg). Saved to {client_path}")
+
+             return client_data_paths # Exit after handling non-IID binary case
+
+    # --- Handle IID splitting for Multi-Class or Regression (or binary fallback) ---
+    logger.info("Applying random (IID-like) data split...")
+    df_shuffled = df.sample(frac=1).reset_index(drop=True) # Shuffle dataframe
+    samples_per_client = len(df_shuffled) // num_clients
+
+    for i in range(num_clients):
+        client_id = f"client_{i+1}"
+        start_idx = i * samples_per_client
+        # Assign remaining samples to the last client
+        end_idx = (i + 1) * samples_per_client if i < num_clients - 1 else len(df_shuffled)
+
+        client_df = df_shuffled.iloc[start_idx:end_idx]
+
         client_path = data_dir / f"{client_id}_data.csv"
         client_df.to_csv(client_path, index=False)
-        client_data_paths[client_id] = client_path
-        
-        logger.info(f"Created dataset for {client_id}: {len(client_df)} samples "
-                   f"({cancer_samples} cancer, {non_cancer_samples} non-cancer)")
-    
+        client_data_paths[client_id] = str(client_path)
+        logger.info(f"Created dataset for {client_id}: {len(client_df)} samples (IID split). Saved to {client_path}")
+
     return client_data_paths
 
-async def run_federated_learning(config_path: str, num_clients: int = 5):
+
+async def run_federated_learning(config: FrameworkConfig, num_clients: int, client_data_paths: Dict[str, str]):
     """
-    Run the federated learning process for cancer detection.
-    
+    Runs the main federated learning simulation loop.
+
     Args:
-        config_path: Path to configuration file
-        num_clients: Number of clients to simulate
+        config: The FrameworkConfig object.
+        num_clients: Number of clients participating.
+        client_data_paths: Dictionary mapping client IDs to their data paths.
     """
-    # Load configuration
-    config = FrameworkConfig.from_file(config_path)
-    
-    # Create data for clients
-    client_data_paths = await prepare_data(num_clients)
-    
-    # Initialize server
-    server = FederatedServer(config)
-    await server.start()
-    
-    # Initialize clients
-    clients = {}
-    for client_id, data_path in client_data_paths.items():
-        client = FederatedClient(client_id, config, str(data_path))
-        await client.initialize()
-        clients[client_id] = client
-        
-        # Register with server
-        await server.register_client(client_id, client.get_client_info())
-    
-    logger.info(f"Initialized {len(clients)} federated learning clients")
-    
-    # Run for specified number of rounds
-    for round_id in range(1, config.federated.communication_rounds + 1):
-        logger.info(f"Starting federated round {round_id}")
-        
-        # Start round on server
-        round_config = await server.start_round()
-        if round_config is None:
-            logger.info("No more rounds to execute")
-            break
-        
-        # Get selected clients
-        selected_clients = round_config["selected_clients"]
-        if not selected_clients:
-            logger.warning("No clients selected for this round")
-            continue
-        
-        logger.info(f"Selected clients for round {round_id}: {selected_clients}")
-        
-        # Train on each selected client
-        for client_id in selected_clients:
-            client = clients[client_id]
-            
-            # Train local model
-            logger.info(f"Training on client {client_id}")
-            result = await client.train(
-                round_id=round_id,
-                parameters=round_config["parameters"],
-                encrypted=round_config["encrypted"],
-                epochs=round_config["config"]["local_epochs"],
-                learning_rate=round_config["config"]["learning_rate"]
-            )
-            
-            # Submit update to server
-            if result["status"] == "success":
-                logger.info(f"Client {client_id} training complete: "
-                           f"loss={result['train_loss']:.4f}, "
-                           f"accuracy={result.get('train_accuracy', 0):.4f}")
-                
-                await server.submit_update(client_id, round_id, result)
+    server = None # Initialize server variable
+    clients = {} # Initialize clients dictionary
+    try:
+        # --- Initialize Server ---
+        logger.info("Initializing Federated Server...")
+        server = FederatedServer(config)
+        await server.start() # Loads server data, creates model, etc.
+        logger.info("Server initialized successfully.")
+
+        # --- Initialize Clients ---
+        logger.info(f"Initializing {num_clients} Federated Clients...")
+        initialization_tasks = []
+        client_ids = list(client_data_paths.keys())
+
+        for client_id in client_ids:
+            data_path = client_data_paths[client_id]
+            client = FederatedClient(client_id, config, data_path)
+            clients[client_id] = client
+            # Prepare initialization task (loads data, creates model, gets public context)
+            initialization_tasks.append(client.initialize(server.public_context_bytes))
+
+        # Run initializations concurrently
+        init_results = await asyncio.gather(*initialization_tasks)
+
+        successful_inits = 0
+        for i, result in enumerate(init_results):
+            client_id = client_ids[i]
+            if result:
+                logger.info(f"Client {client_id} initialized successfully.")
+                # Register successfully initialized clients
+                client_info = clients[client_id].get_client_info()
+                await server.register_client(client_id, client_info)
+                successful_inits += 1
             else:
-                logger.error(f"Client {client_id} training failed: {result.get('message')}")
-    
-    # Evaluate final model
-    test_metrics = await server.get_test_metrics()
-    logger.info(f"Final model test metrics: {test_metrics}")
-    
-    # Stop server
-    await server.stop()
-    
-    logger.info("Federated learning complete!")
+                logger.error(f"Failed to initialize client {client_id}. It will not participate.")
+                # Remove failed client from our dictionary
+                del clients[client_id]
+
+        logger.info(f"Initialized {successful_inits}/{num_clients} clients.")
+        if successful_inits < config.federated.min_clients:
+            logger.error(f"Number of successfully initialized clients ({successful_inits}) is less than min_clients ({config.federated.min_clients}). Aborting.")
+            await server.stop()
+            return
+
+        # --- Run Federated Rounds ---
+        # Server now drives the rounds internally
+        await server.run_federated_rounds() # This loop handles selection, waiting, aggregation, evaluation
+
+        # --- [Simulation Part] ---
+        # In a real deployment, clients would run independently and respond to server.
+        # Here, we need to *trigger* the client training when the server selects them.
+        # We'll modify the server loop slightly or use a callback mechanism.
+        # For simplicity in this simulation, let's adapt the server loop (`run_federated_rounds`)
+        # to directly call the relevant clients after selection.
+
+        # --- Modified Simulation Loop (Conceptual - Requires Server Modification) ---
+        # Instead of calling server.run_federated_rounds() directly, we might do:
+        for round_num in range(1, config.federated.communication_rounds + 1):
+             if not server.is_running: break
+
+             logger.info(f"----- Orchestrating Round {round_num} -----")
+
+             # Server selects clients and prepares config
+             round_config_package = await server.start_round_simulation() # New server method
+             if round_config_package is None: # Handles selection, param prep
+                 logger.warning(f"Server could not start round {round_num}. Skipping.")
+                 await asyncio.sleep(5)
+                 continue
+
+             selected_clients = round_config_package["selected_clients"]
+             logger.info(f"Round {round_num}: Server selected clients: {selected_clients}")
+
+             # Trigger training on selected clients concurrently
+             training_tasks = []
+             for client_id in selected_clients:
+                 if client_id in clients:
+                      client = clients[client_id]
+                      logger.debug(f"Dispatching training task to client {client_id} for round {round_num}")
+                      training_tasks.append(
+                          client.train(
+                              round_id=round_config_package["round_id"],
+                              parameters=round_config_package["parameters"],
+                              encrypted=round_config_package["encrypted"],
+                              config_update=round_config_package["client_config"]
+                          )
+                      )
+                 else:
+                      logger.warning(f"Selected client {client_id} not found in active client list. Skipping.")
+
+             # Wait for training results
+             client_results = await asyncio.gather(*training_tasks)
+
+             # Submit results to server
+             num_success = 0
+             for result in client_results:
+                  if result and result.get("status") == "success":
+                       client_id = result["client_id"]
+                       round_id = result["round_id"]
+                       logger.debug(f"Submitting update from {client_id} for round {round_id}")
+                       # Server internally handles validation and storage
+                       await server.submit_update(client_id, round_id, result)
+                       num_success += 1
+                  elif result:
+                       client_id = result.get("client_id", "unknown")
+                       error_msg = result.get("message", "unknown error")
+                       logger.error(f"Training failed on client {client_id}: {error_msg}")
+                       # Server's submit_update logic might already handle failed status
+
+             logger.info(f"Round {round_num}: Received {num_success}/{len(selected_clients)} successful updates.")
+
+             # Server aggregates, evaluates, logs summary
+             await server.end_round_simulation() # New server method for post-update steps
+
+        logger.info("Federated learning simulation finished.")
+
+        # Final evaluation already happens inside server's loop now.
+
+    except Exception as e:
+        logger.error(f"An error occurred during the federated learning run: {e}", exc_info=True)
+    finally:
+        # --- Shutdown ---
+        if server and server.is_running:
+            logger.info("Shutting down server...")
+            await server.stop()
+        logger.info("Federated learning process terminated.")
+
+async def start_round_simulation(self: FederatedServer) -> Optional[Dict[str, Any]]:
+     """Simulation helper: Selects clients and prepares config package."""
+     async with self._round_lock:
+          if self.current_round >= self.max_rounds:
+               self.logger.info("Maximum rounds reached.")
+               return None
+
+          self.current_round += 1
+          self.logger.info(f"===== Starting Simulated Round {self.current_round}/{self.max_rounds} =====")
+
+          available_clients = await self.get_available_clients()
+          if len(available_clients) < self.config.federated.min_clients:
+               self.logger.warning(f"Not enough available clients ({len(available_clients)}) < min ({self.config.federated.min_clients}). Round skipped.")
+               self.current_round -= 1 # Decrement round counter as it was skipped
+               return None
+
+          num_to_select = min(self.config.federated.clients_per_round, len(available_clients))
+          self.selected_clients_this_round = np.random.choice(available_clients, num_to_select, replace=False).tolist()
+          self.logger.info(f"Selected {len(self.selected_clients_this_round)} clients: {self.selected_clients_this_round}")
+          self.client_updates_this_round = {}
+
+          round_config_package = await self._prepare_round_start_config()
+          if round_config_package is None:
+               self.logger.error("Failed to prepare round configuration.")
+               self.current_round -=1 # Decrement round counter
+               return None
+
+          # Add selected clients to the package for the orchestrator
+          round_config_package["selected_clients"] = self.selected_clients_this_round
+          return round_config_package
+
+
+async def end_round_simulation(self: FederatedServer):
+        """Simulation helper: Performs aggregation, evaluation, logging after updates."""
+        async with self._round_lock: # Ensure operations happen for the correct round
+            num_received = len(self.client_updates_this_round)
+            self.logger.info(f"End of Round {self.current_round}: Aggregating {num_received} updates.")
+
+            round_start_time = time.time() # Placeholder for duration logging
+
+            if num_received > 0:
+                await self._aggregate_and_update()
+
+                if self.val_dataloader:
+                    self.logger.info("Evaluating updated global model (Validation)...")
+                    self.global_eval_metrics = await self._evaluate_model(self.val_dataloader)
+                    self.logger.info(f"Round {self.current_round} Validation Metrics: {self.global_eval_metrics}")
+
+                    metric_to_track = 'accuracy' if self.config.model.task_type != 'regression' else 'loss'
+                    current_metric = self.global_eval_metrics.get(metric_to_track)
+                    if current_metric is not None:
+                            is_better = (metric_to_track == 'accuracy' and current_metric > self.best_model_metric_value) or \
+                                        (metric_to_track == 'loss' and current_metric < (self.best_model_metric_value if self.best_model_round > 0 else float('inf')))
+                            if is_better:
+                                self.logger.info(f"New best model found! Round {self.current_round}, {metric_to_track}: {current_metric:.4f}")
+                                self.best_model_metric_value = current_metric
+                                self.best_model_round = self.current_round
+                                self._save_checkpoint("best")
+                else:
+                        self.logger.info("Skipping global model evaluation (no validation data).")
+
+                self._record_history()
+                self._log_round_summary(round_start_time) # Pass dummy start time
+
+                if self.current_round % self.config.system.get('checkpoint_frequency', 10) == 0:
+                    self._save_checkpoint(f"round_{self.current_round}")
+            else:
+                self.logger.warning("No valid updates received. Skipping aggregation and evaluation.")
+                # Still record a history entry indicating skipped round?
+                history_entry = { "round": self.current_round, "status": "skipped_no_updates", "timestamp": datetime.now().isoformat()}
+                self.training_history.append(history_entry)
+
+
+            self.logger.info(f"===== Finished Simulated Round {self.current_round} =====")
+
+            # Check if max rounds reached after this round
+            if self.current_round >= self.max_rounds:
+                self.logger.info("Maximum rounds reached.")
+                await self.run_final_evaluation()
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Federated Learning for Cancer Detection")
-    parser.add_argument("--config", default="cancer_detection_config.yaml", help="Path to configuration file")
-    parser.add_argument("--clients", type=int, default=5, help="Number of clients to simulate")
-    
+    parser = argparse.ArgumentParser(description="Federated Learning Framework - Cancer Detection Example")
+    parser.add_argument("--config", default="config.yaml", help="Path to the framework YAML configuration file.")
+    parser.add_argument("--clients", type=int, default=5, help="Number of clients to simulate.")
+    # Optional: Specify data path directly, otherwise use config
+    parser.add_argument("--data", type=str, help="Path to the *full* dataset CSV (overrides config path if provided). Clients will get splits.")
+    # Optional: Specify where client data splits are stored/created
+    parser.add_argument("--client-data-dir", type=str, default="client_data", help="Directory to store/create client data splits.")
+
     args = parser.parse_args()
-    
-    # Run the federated learning process
-    asyncio.run(run_federated_learning(args.config, args.clients))
+
+    # --- Load Configuration ---
+    try:
+        config = FrameworkConfig.from_file(args.config)
+    except FileNotFoundError:
+        logger.error(f"Configuration file not found: {args.config}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Error loading configuration from {args.config}: {e}", exc_info=True)
+        sys.exit(1)
+
+    # --- Setup Logging (using level from config) ---
+    setup_logging(config.system.log_level)
+    logger.info(f"Loaded configuration from: {args.config}")
+    logger.info(f"Project: {config.project_name}, Task: {config.model.task_type}")
+    logger.info(f"HE Enabled: {config.crypto.enabled}, DP Enabled: {config.privacy.differential_privacy}")
+
+
+    # --- Determine Base Data Path ---
+    base_data_path = args.data if args.data else config.data.data_path
+    if not Path(base_data_path).is_file():
+         logger.error(f"Base data file not found or not a file: {base_data_path}")
+         sys.exit(1)
+    # Update config path if overridden by args.data - IMPORTANT for server eval
+    config.data.data_path = os.path.abspath(base_data_path)
+    logger.info(f"Using base dataset: {config.data.data_path}")
+
+
+    # --- Prepare Client Data ---
+    client_data_dir = Path(args.client_data_dir)
+    try:
+        client_paths = asyncio.run(prepare_data(
+            num_clients=args.clients,
+            base_data_path=config.data.data_path,
+            target_column=config.data.target_column,
+            task_type=config.model.task_type,
+            data_dir=client_data_dir
+        ))
+    except Exception as e:
+        logger.error(f"Failed to prepare client data: {e}", exc_info=True)
+        sys.exit(1)
+
+    # --- Add simulation methods to server ---
+    # This feels a bit hacky, but avoids modifying the server class directly here
+    FederatedServer.start_round_simulation = start_round_simulation
+    FederatedServer.end_round_simulation = end_round_simulation
+
+    # --- Run Main FL Process ---
+    try:
+        asyncio.run(run_federated_learning(config, args.clients, client_paths))
+    except KeyboardInterrupt:
+        logger.info("Federated learning interrupted by user.")
+    except Exception as e:
+        logger.critical(f"Federated learning terminated due to critical error: {e}", exc_info=True)
+
+    logger.info("Main script finished.")

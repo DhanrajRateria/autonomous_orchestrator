@@ -4,380 +4,556 @@ import asyncio
 import time
 import json
 import pickle
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Union
 import numpy as np
 import torch
+import torch.optim as optim
+import torch.nn as nn
 from pathlib import Path
 from datetime import datetime
 
-from federated_learning_framework.config import FrameworkConfig
+# Adjust imports based on your actual project structure
+from federated_learning_framework.config import FrameworkConfig, ModelConfig
 from federated_learning_framework.crypto_engine import CryptoEngine
 from federated_learning_framework.models import create_model
 from federated_learning_framework.data_handler import DataHandler
 
+
 class FederatedClient:
     """
-    Client for federated learning with homomorphic encryption support.
-    Trains models locally on private data and communicates with the server
-    for federated learning.
+    Federated Learning Client.
+    Manages local data, model training, and interaction with the server.
+    Supports homomorphic encryption for parameter exchange.
     """
-    
-    def __init__(self, client_id: str, config: FrameworkConfig, data_path: str = None):
+
+    def __init__(self, client_id: str, config: FrameworkConfig, data_path: str):
         """
-        Initialize the federated learning client.
-        
+        Initialize the client.
         Args:
-            client_id: Unique client identifier
-            config: Framework configuration
-            data_path: Path to client's dataset (overrides config)
+            client_id: Unique identifier for this client.
+            config: Global framework configuration.
+            data_path: Path to this client's local dataset file (e.g., CSV).
         """
-        self.logger = logging.getLogger(f"federated.client.{client_id}")
         self.client_id = client_id
         self.config = config
-        
-        # Override data path if provided
-        if data_path:
-            self.config.data.data_path = data_path
-        
-        # Set up directories
-        self.checkpoint_dir = Path(config.system.checkpoint_dir) / f"client_{client_id}"
+        self.local_data_path = data_path
+        self.logger = logging.getLogger(f"federated.client.{self.client_id}")
+
+        # --- System Setup ---
+        self.checkpoint_dir = Path(config.system.checkpoint_dir) / f"client_{self.client_id}"
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Set random seed for reproducibility
         torch.manual_seed(config.system.seed)
         np.random.seed(config.system.seed)
-        
-        # Initialize crypto engine
+        try:
+            self.device = torch.device(config.system.device)
+            # Test CUDA availability if specified
+            if "cuda" in config.system.device and not torch.cuda.is_available():
+                 self.logger.warning(f"Device set to '{config.system.device}' but CUDA not available. Falling back to CPU.")
+                 self.device = torch.device("cpu")
+            elif "mps" in config.system.device and not torch.backends.mps.is_available():
+                 self.logger.warning(f"Device set to '{config.system.device}' but MPS not available. Falling back to CPU.")
+                 self.device = torch.device("cpu")
+
+        except Exception as e:
+             self.logger.error(f"Error setting device '{config.system.device}': {e}. Using CPU.", exc_info=True)
+             self.device = torch.device("cpu")
+        self.logger.info(f"Using device: {self.device}")
+
+
+        # --- Crypto Engine ---
         self.crypto_engine = CryptoEngine(config.crypto)
-        
-        # Set device
-        self.device = torch.device(config.system.device)
-        
-        # Prepare local model
-        self.model = create_model(config.model, 
-                                 input_shape=config.data.input_shape,
-                                 output_shape=config.data.output_shape)
-        self.model.to(self.device)
-        
-        # Data handler
-        self.data_handler = DataHandler(config.data)
-        
-        # Client state
+        # Client only needs the public context, loaded later if needed
+
+        # --- Data Handling ---
+        # Pass task_type to DataHandler for correct target processing
+        self.data_handler = DataHandler(config)
+        self.train_dataloader = None
+        self.val_dataloader = None
+        self.train_size = 0
+
+        # --- Model ---
+        # Model is created *after* data is loaded to get definitive shapes
+        self.model: Optional[nn.Module] = None
+
+        # --- State ---
         self.current_round = 0
         self.training_history = []
         self.is_training = False
-        
-        self.logger.info(f"Federated client {client_id} initialized")
-    
-    async def initialize(self):
-        """Initialize client data and resources"""
+        self.initialized = False
+
+        self.logger.info(f"Federated client '{client_id}' created. Data: {data_path}")
+
+    async def initialize(self, public_context_bytes: Optional[bytes] = None):
+        """
+        Initialize client resources: load data, create model, load crypto context.
+        Args:
+            public_context_bytes: Serialized public TenSEAL context from the server.
+        """
+        if self.initialized:
+            self.logger.warning("Client already initialized.")
+            return True
+
+        self.logger.info("Initializing client...")
         try:
-            # Load dataset
-            self.logger.info("Loading client dataset")
+            # 1. Load Data and get definitive shapes
+            self.logger.info("Loading local dataset...")
+            # Use client's specific data path, only request train/val split
+            # Server handles test split on its own data
             self.train_dataloader, self.val_dataloader, _ = await asyncio.to_thread(
                 self.data_handler.load_data,
+                data_override_path=self.local_data_path,
                 val_split=self.config.data.val_split,
-                test_split=0.0  # No test set for clients
+                test_split=0.0 # Clients typically don't have a test set
             )
-            
-            # Get data size for weighting
+
+            if not self.train_dataloader:
+                 raise RuntimeError("Failed to create training dataloader.")
+
             self.train_size = len(self.train_dataloader.dataset)
-            
-            self.logger.info(f"Client dataset loaded with {self.train_size} training samples")
-            
-            # Load crypto context if needed
-            if self.crypto_engine.is_enabled():
-                try:
-                    context_path = Path(self.config.system.checkpoint_dir) / "crypto_context"
-                    if context_path.exists():
-                        self.crypto_engine.load_context(str(context_path))
-                        self.logger.info("Loaded crypto context from server")
-                except Exception as e:
-                    self.logger.warning(f"Could not load crypto context: {e}")
-                
+            val_size = len(self.val_dataloader.dataset) if self.val_dataloader else 0
+            self.logger.info(f"Dataset loaded: {self.train_size} training samples, {val_size} validation samples.")
+
+            # Get final input/output shapes from the data handler's config (updated during load)
+            final_input_shape = self.data_handler.data_config.input_shape
+            final_output_shape = self.data_handler.data_config.output_shape
+            self.logger.info(f"Data loading complete. Final Input Shape: {final_input_shape}, Final Output Shape: {final_output_shape}")
+
+
+            # 2. Create Model using final shapes
+            self.logger.info("Creating local model...")
+            self.model = create_model(
+                model_config=self.config.model,
+                input_shape=final_input_shape,
+                output_shape=final_output_shape
+            )
+            self.model.to(self.device)
+            self.logger.info(f"Model '{self.config.model.type}' created and moved to {self.device}.")
+            # Log model structure
+            self.logger.debug(f"Model structure:\n{self.model}")
+
+
+            # 3. Load Crypto Context if enabled
+            if self.crypto_engine.config.enabled:
+                 if public_context_bytes:
+                     self.logger.info("Loading public crypto context from server...")
+                     self.crypto_engine.load_public_context(public_context_bytes)
+                     if not self.crypto_engine.is_enabled():
+                          self.logger.warning("Crypto engine failed to load context, HE disabled for this client.")
+                 else:
+                     self.logger.warning("HE is enabled in config, but no public context provided by server.")
+                     # Should the client proceed without HE? Depends on system design.
+                     # Let's disable it for this client for safety.
+                     self.crypto_engine.config.enabled = False
+
+
+            self.initialized = True
+            self.logger.info(f"Client '{self.client_id}' initialization successful.")
             return True
-            
+
         except Exception as e:
-            self.logger.error(f"Error initializing client: {e}")
+            self.logger.error(f"Client initialization failed: {e}", exc_info=True)
+            self.initialized = False
             return False
-    
-    async def train(self, round_id: int, parameters: Dict[str, Any], 
-                  encrypted: bool = False, epochs: int = None, 
-                  learning_rate: float = None) -> Dict[str, Any]:
+
+    async def train(self, round_id: int, parameters: Union[Dict[str, np.ndarray], Dict[str, Any]],
+                  encrypted: bool, config_update: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Train the local model using the provided parameters.
-        
+        Perform local training for one round.
         Args:
-            round_id: Current round number
-            parameters: Model parameters from server
-            encrypted: Whether parameters are encrypted
-            epochs: Number of local epochs (overrides config)
-            learning_rate: Learning rate (overrides config)
-            
+            round_id: Current federated round number.
+            parameters: Model parameters from the server (plain numpy arrays or encrypted dicts).
+            encrypted: Flag indicating if parameters are encrypted.
+            config_update: Dictionary with round-specific config (e.g., epochs, lr).
         Returns:
-            Dictionary with training results and updated parameters
+            Dictionary with training results and updated parameters (possibly encrypted).
         """
+        if not self.initialized:
+             msg = "Client not initialized. Cannot start training."
+             self.logger.error(msg)
+             return {"status": "error", "message": msg}
         if self.is_training:
-            self.logger.warning("Already training, cannot start new training job")
-            return {"status": "error", "message": "Already training"}
-        
+            msg = "Client is already training. Ignoring new request."
+            self.logger.warning(msg)
+            return {"status": "busy", "message": msg}
+
+        self.is_training = True
+        self.current_round = round_id
+        start_time = time.time()
+        self.logger.info(f"Starting local training for round {round_id}...")
+
+        # Get training parameters from config or update
+        local_epochs = self.config.federated.local_epochs
+        client_lr = self.config.federated.client_learning_rate
+        if config_update:
+            local_epochs = config_update.get("local_epochs", local_epochs)
+            client_lr = config_update.get("learning_rate", client_lr)
+            # Handle other potential overrides like proximal_mu if implementing FedProx
+
+        self.logger.info(f"Round Config: Epochs={local_epochs}, LR={client_lr}")
+
         try:
-            self.is_training = True
-            self.current_round = round_id
-            self.logger.info(f"Starting local training for round {round_id}")
-            
-            # Set training parameters
-            epochs = epochs or self.config.federated.local_epochs
-            learning_rate = learning_rate or self.config.federated.client_learning_rate
-            batch_size = self.config.data.batch_size
-            
-            # Update local model with server parameters
+            # 1. Update local model with server parameters
+            self.logger.debug("Updating local model with server parameters...")
             await self._update_local_model(parameters, encrypted)
-            
-            # Prepare optimizer
-            optimizer = torch.optim.SGD(
-                self.model.parameters(),
-                lr=learning_rate,
-                momentum=0.9
-            )
-            
-            # Set up loss function based on task
-            if self.config.task_type == "classification":
-                criterion = torch.nn.CrossEntropyLoss()
-            elif self.config.task_type == "regression":
-                criterion = torch.nn.MSELoss()
-            else:
-                criterion = torch.nn.CrossEntropyLoss()  # Default
-            
-            # Train for specified number of epochs
-            self.model.train()
-            training_results = await self._train_epochs(
-                optimizer, criterion, epochs, batch_size
-            )
-            
-            # Extract updated parameters (with or without encryption)
-            if encrypted and self.crypto_engine.is_enabled():
+
+            # 2. Set up Optimizer (always use parameters from the current model state)
+            # Consider allowing optimizer choice from config (Adam, etc.)
+            optimizer = optim.SGD(self.model.parameters(), lr=client_lr, momentum=0.9)
+            # optimizer = optim.Adam(self.model.parameters(), lr=client_lr)
+
+            # 3. Train for local epochs
+            self.model.train() # Set model to training mode
+            training_results = await self._train_epochs(optimizer, local_epochs)
+
+            # 4. Extract updated parameters (encrypt if needed)
+            self.logger.debug("Extracting updated parameters...")
+            if self.crypto_engine.is_enabled():
+                self.logger.info("Encrypting updated parameters...")
                 updated_params = self.crypto_engine.encrypt_torch_params(self.model)
+                params_encrypted = True
+                if not updated_params: # Check if encryption failed
+                     raise RuntimeError("Parameter encryption failed.")
             else:
-                updated_params = {
-                    name: param.cpu().detach().numpy()
-                    for name, param in self.model.named_parameters()
-                }
-            
-            # Prepare result
+                # Extract plain numpy parameters
+                updated_params = {name: param.cpu().detach().numpy()
+                                  for name, param in self.model.named_parameters()}
+                params_encrypted = False
+
+            # 5. Prepare result package
+            end_time = time.time()
             result = {
                 "status": "success",
+                "client_id": self.client_id,
                 "round_id": round_id,
                 "parameters": updated_params,
-                "encrypted": encrypted,
+                "encrypted": params_encrypted,
                 "sample_size": self.train_size,
-                "train_loss": training_results["train_loss"],
-                "train_accuracy": training_results.get("train_accuracy"),
-                "val_loss": training_results["val_loss"],
-                "val_accuracy": training_results.get("val_accuracy"),
+                "metrics": training_results, # Contains train_loss, train_acc, val_loss, val_acc
+                "train_duration_sec": end_time - start_time,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
             # Store result in history
             self.training_history.append({
                 "round": round_id,
-                "metrics": {
-                    "train_loss": training_results["train_loss"],
-                    "train_accuracy": training_results.get("train_accuracy"),
-                    "val_loss": training_results["val_loss"],
-                    "val_accuracy": training_results.get("val_accuracy")
-                }
+                "metrics": training_results,
+                "duration": end_time - start_time
             })
-            
-            # Save checkpoint periodically
-            if round_id % 10 == 0:
+
+            # Save checkpoint periodically (optional)
+            if round_id % self.config.system.get('checkpoint_frequency', 10) == 0:
                 self._save_checkpoint(f"round_{round_id}")
-            
-            self.logger.info(f"Completed local training for round {round_id}")
+
+            self.logger.info(f"Local training round {round_id} completed in {end_time - start_time:.2f}s.")
+            self.logger.info(f"Metrics: Train Loss={training_results['train_loss']:.4f}, "
+                           f"Train Acc={training_results.get('train_accuracy', -1):.4f}, "
+                           f"Val Loss={training_results.get('val_loss', -1):.4f}, "
+                           f"Val Acc={training_results.get('val_accuracy', -1):.4f}")
             return result
-            
+
         except Exception as e:
-            self.logger.error(f"Error during local training: {e}", exc_info=True)
-            return {"status": "error", "message": str(e)}
+            self.logger.error(f"Error during local training round {round_id}: {e}", exc_info=True)
+            return {"status": "error", "client_id": self.client_id, "round_id": round_id, "message": str(e)}
         finally:
             self.is_training = False
-    
-    async def _train_epochs(self, optimizer, criterion, epochs, batch_size) -> Dict[str, float]:
-        """Run training for multiple epochs"""
+
+    async def _train_epochs(self, optimizer: optim.Optimizer, epochs: int) -> Dict[str, float]:
+        """Internal method to run training loop for specified epochs."""
+
+        task_type = self.config.model.task_type
+        is_binary = task_type == "binary_classification"
+        num_classes = self.config.data.output_shape[0] # From data handler config
+
+        # --- Select Loss Function ---
+        if is_binary:
+             # Assumes model output is single raw logit
+            criterion = nn.BCEWithLogitsLoss()
+            self.logger.debug("Using BCEWithLogitsLoss for binary classification.")
+        elif task_type == "classification":
+             # Assumes model output is raw logits [batch, num_classes]
+            criterion = nn.CrossEntropyLoss()
+            self.logger.debug(f"Using CrossEntropyLoss for multi-class classification ({num_classes} classes).")
+        elif task_type == "regression":
+            criterion = nn.MSELoss() # Or MAELoss etc.
+            self.logger.debug("Using MSELoss for regression.")
+        else:
+            raise ValueError(f"Unsupported task_type '{task_type}' for loss selection.")
+
         total_train_loss = 0.0
         total_train_correct = 0
         total_train_samples = 0
-        is_classification = self.config.task_type == "classification"
-        
-        self.model.train()
-        
-        # Train for specified epochs
+
         for epoch in range(epochs):
+            epoch_start_time = time.time()
             epoch_loss = 0.0
             epoch_correct = 0
             epoch_samples = 0
-            
-            for batch_idx, batch in enumerate(self.train_dataloader):
-                inputs, targets = batch
+
+            self.model.train() # Ensure model is in training mode each epoch
+
+            for batch_idx, (inputs, targets) in enumerate(self.train_dataloader):
                 inputs = inputs.to(self.device)
-                targets = targets.to(self.device)
-                
-                # Forward pass
+                targets = targets.to(self.device) # Dtype should be correct from DataHandler
+
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
-                loss = criterion(outputs, targets)
-                
-                # Backward pass and optimize
+
+                # --- Loss Calculation ---
+                if is_binary:
+                     # BCEWithLogitsLoss expects output [N] or [N, 1], target [N] or [N, 1] float
+                    loss = criterion(outputs.squeeze(), targets.float()) # Ensure targets are float
+                elif task_type == "classification":
+                     # CrossEntropyLoss expects output [N, C], target [N] long
+                    loss = criterion(outputs, targets.long()) # Ensure targets are long
+                else: # Regression
+                     # MSELoss expects output and target of same shape
+                    loss = criterion(outputs.squeeze(), targets.float()) # Ensure targets are float
+
+
+                # --- Safe Loss Handling & Backpropagation ---
+                if torch.isnan(loss) or torch.isinf(loss):
+                    self.logger.warning(f"Epoch {epoch+1}, Batch {batch_idx+1}: NaN or Inf loss detected! Loss value: {loss.item()}. Skipping batch update.")
+                    # Skip backward/step for this batch to avoid propagating NaN/Inf
+                    # Alternatively, use a small fixed loss, but skipping is often safer.
+                    # loss = torch.tensor(10.0, device=self.device, requires_grad=True) # Example fixed loss
+                    continue # Skip optimizer step
+
+
                 loss.backward()
+                # Gradient Clipping (optional, add to config if needed)
+                # clip_value = self.config.privacy.gradient_clipping
+                # if clip_value > 0:
+                #    nn.utils.clip_grad_norm_(self.model.parameters(), clip_value)
                 optimizer.step()
-                
-                # Update statistics
-                epoch_loss += loss.item() * inputs.size(0)
+
+                # --- Statistics Update ---
+                batch_loss = loss.item()
+                epoch_loss += batch_loss * inputs.size(0)
                 epoch_samples += inputs.size(0)
-                
-                # Classification metrics
-                if is_classification:
-                    _, predicted = torch.max(outputs, 1)
-                    epoch_correct += (predicted == targets).sum().item()
-                
-                # Log progress
-                if (batch_idx + 1) % 10 == 0:
-                    self.logger.debug(f"Epoch {epoch+1}/{epochs}, Batch {batch_idx+1}/{len(self.train_dataloader)}, "
-                                    f"Loss: {loss.item():.4f}")
-            
-            # Epoch statistics
-            epoch_avg_loss = epoch_loss / epoch_samples
-            
-            self.logger.info(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_avg_loss:.4f}")
-            
-            if is_classification:
+
+                # --- Accuracy Calculation (Classification only) ---
+                with torch.no_grad():
+                    if is_binary:
+                        predicted = (torch.sigmoid(outputs.squeeze()) > 0.5).float()
+                        correct = (predicted == targets.float()).sum().item()
+                    elif task_type == "classification":
+                        _, predicted = torch.max(outputs, 1)
+                        correct = (predicted == targets.long()).sum().item()
+                    else:
+                        correct = 0 # No accuracy concept for regression here
+
+                    epoch_correct += correct
+
+                if (batch_idx + 1) % 50 == 0: # Log progress every 50 batches
+                     self.logger.debug(f"Epoch {epoch+1}/{epochs}, Batch {batch_idx+1}/{len(self.train_dataloader)}, Loss: {batch_loss:.4f}")
+
+
+            # --- Epoch Summary ---
+            epoch_avg_loss = epoch_loss / epoch_samples if epoch_samples > 0 else 0
+            epoch_duration = time.time() - epoch_start_time
+            log_msg = f"Epoch {epoch+1}/{epochs} finished in {epoch_duration:.2f}s. Avg Train Loss: {epoch_avg_loss:.4f}"
+
+            if task_type != "regression" and epoch_samples > 0:
                 epoch_accuracy = epoch_correct / epoch_samples
-                self.logger.info(f"Epoch {epoch+1}/{epochs}, Accuracy: {epoch_accuracy:.4f}")
-            
-            # Update totals
+                log_msg += f", Train Accuracy: {epoch_accuracy:.4f}"
+                total_train_correct += epoch_correct
+
+            self.logger.info(log_msg)
+
             total_train_loss += epoch_loss
             total_train_samples += epoch_samples
-            if is_classification:
-                total_train_correct += epoch_correct
-        
-        # Calculate final training metrics
-        avg_train_loss = total_train_loss / total_train_samples
-        
-        # Evaluate on validation set
-        val_metrics = await self._evaluate()
-        
-        # Prepare results
-        result = {
-            "train_loss": avg_train_loss,
-            "val_loss": val_metrics["loss"]
+
+
+        # --- Final Training Metrics ---
+        final_avg_train_loss = total_train_loss / total_train_samples if total_train_samples > 0 else 0
+        final_train_accuracy = total_train_correct / total_train_samples if task_type != "regression" and total_train_samples > 0 else None
+
+        # --- Evaluate on Validation Set (if available) ---
+        val_metrics = {}
+        if self.val_dataloader:
+             self.logger.info("Evaluating model on local validation set...")
+             val_metrics = await self._evaluate()
+             self.logger.info(f"Validation Metrics: Loss={val_metrics.get('val_loss', -1):.4f}, Acc={val_metrics.get('val_accuracy', -1):.4f}")
+        else:
+             self.logger.info("No validation set available for evaluation.")
+
+
+        results = {
+            "train_loss": final_avg_train_loss,
         }
-        
-        if is_classification:
-            result["train_accuracy"] = total_train_correct / total_train_samples
-            result["val_accuracy"] = val_metrics.get("accuracy")
-        
-        return result
-    
+        if final_train_accuracy is not None:
+             results["train_accuracy"] = final_train_accuracy
+        if val_metrics:
+             results.update(val_metrics) # Adds val_loss, val_accuracy
+
+        return results
+
+
     async def _evaluate(self) -> Dict[str, float]:
-        """Evaluate the model on validation data"""
-        self.model.eval()
-        
+        """Evaluate the current model on the local validation set."""
+        if not self.val_dataloader:
+            return {}
+        if not self.model:
+             self.logger.error("Cannot evaluate, model not initialized.")
+             return {}
+
+        self.model.eval() # Set model to evaluation mode
+        task_type = self.config.model.task_type
+        is_binary = task_type == "binary_classification"
+        num_classes = self.config.data.output_shape[0]
+
+        # Select Loss Function (consistent with training)
+        if is_binary: criterion = nn.BCEWithLogitsLoss()
+        elif task_type == "classification": criterion = nn.CrossEntropyLoss()
+        else: criterion = nn.MSELoss()
+
         total_loss = 0.0
         total_correct = 0
         total_samples = 0
-        is_classification = self.config.task_type == "classification"
-        
-        if is_classification:
-            criterion = torch.nn.CrossEntropyLoss()
-        else:
-            criterion = torch.nn.MSELoss()
-        
+
         with torch.no_grad():
-            for batch in self.val_dataloader:
-                inputs, targets = batch
+            for inputs, targets in self.val_dataloader:
                 inputs = inputs.to(self.device)
                 targets = targets.to(self.device)
-                
                 outputs = self.model(inputs)
-                loss = criterion(outputs, targets)
-                
+
+                # Loss Calculation
+                if is_binary: loss = criterion(outputs.squeeze(), targets.float())
+                elif task_type == "classification": loss = criterion(outputs, targets.long())
+                else: loss = criterion(outputs.squeeze(), targets.float())
+
                 total_loss += loss.item() * inputs.size(0)
                 total_samples += inputs.size(0)
-                
-                if is_classification:
+
+                # Accuracy Calculation
+                if is_binary:
+                    predicted = (torch.sigmoid(outputs.squeeze()) > 0.5).float()
+                    correct = (predicted == targets.float()).sum().item()
+                elif task_type == "classification":
                     _, predicted = torch.max(outputs, 1)
-                    total_correct += (predicted == targets).sum().item()
-        
-        avg_loss = total_loss / total_samples
-        metrics = {"loss": avg_loss}
-        
-        if is_classification:
+                    correct = (predicted == targets.long()).sum().item()
+                else:
+                    correct = 0 # No accuracy for regression
+
+                total_correct += correct
+
+        # Compute final metrics
+        avg_loss = total_loss / total_samples if total_samples > 0 else 0
+        metrics = {"val_loss": avg_loss}
+        if task_type != "regression" and total_samples > 0:
             accuracy = total_correct / total_samples
-            metrics["accuracy"] = accuracy
-        
+            metrics["val_accuracy"] = accuracy
+
+        self.model.train() # Set model back to training mode
         return metrics
-    
-    async def _update_local_model(self, parameters: Dict[str, Any], encrypted: bool):
-        """Update local model with server parameters"""
-        if encrypted and self.crypto_engine.is_enabled():
-            # Decrypt parameters and update model
-            self.crypto_engine.decrypt_to_torch_params(self.model, parameters)
+
+
+    async def _update_local_model(self, parameters: Union[Dict[str, np.ndarray], Dict[str, Any]], encrypted: bool):
+        """Update local model weights with parameters received from the server."""
+        self.logger.debug(f"Received parameters are {'encrypted' if encrypted else 'plain'}.")
+        if encrypted:
+            if not self.crypto_engine.is_enabled():
+                 self.logger.error("Received encrypted parameters, but HE is disabled on client. Cannot update model.")
+                 # Option: Fallback to current weights? Or raise error?
+                 # Let's keep current weights and log error.
+                 return
+            try:
+                self.logger.info("Decrypting parameters...")
+                start_dec = time.time()
+                # This method handles decryption and loading into the model
+                self.crypto_engine.decrypt_to_torch_params(self.model, parameters)
+                self.logger.info(f"Decryption and model update took {time.time() - start_dec:.2f}s")
+            except Exception as e:
+                self.logger.error(f"Failed to decrypt and update model parameters: {e}", exc_info=True)
+                # Keep existing model parameters
+                self.logger.warning("Using existing model parameters due to decryption/update failure.")
+
         else:
-            # Directly update model with plain parameters
-            with torch.no_grad():
-                for name, param in self.model.named_parameters():
-                    if name in parameters:
-                        param_tensor = torch.tensor(parameters[name], device=self.device)
-                        param.copy_(param_tensor)
-    
-    def _save_checkpoint(self, tag: str = None):
-        """Save model checkpoint"""
+            # Parameters are plain numpy arrays
+            self.logger.debug("Updating model with plain parameters...")
+            try:
+                with torch.no_grad():
+                    for name, param in self.model.named_parameters():
+                        if name in parameters:
+                             param_data = parameters[name]
+                             if not isinstance(param_data, np.ndarray):
+                                  self.logger.warning(f"Plain parameter '{name}' is not a numpy array (type: {type(param_data)}). Skipping.")
+                                  continue
+
+                             param_tensor = torch.from_numpy(param_data).to(param.device) # Move to correct device
+                             if param.shape == param_tensor.shape:
+                                 param.copy_(param_tensor)
+                             else:
+                                 # Critical mismatch - should not happen if server sends correct params
+                                 self.logger.error(f"Shape mismatch for parameter '{name}': Model={param.shape}, Received={param_tensor.shape}. Skipping update for this parameter.")
+                                 # DO NOT RESHAPE - indicates a fundamental issue.
+                        else:
+                             self.logger.warning(f"Parameter '{name}' not found in received plain parameters.")
+            except Exception as e:
+                self.logger.error(f"Error updating model with plain parameters: {e}", exc_info=True)
+                self.logger.warning("Using existing model parameters due to plain update failure.")
+
+
+    def _save_checkpoint(self, tag: str):
+        """Save model checkpoint."""
+        if not self.model:
+             self.logger.warning("Cannot save checkpoint, model not initialized.")
+             return
         try:
-            checkpoint_path = self.checkpoint_dir / f"model_{tag if tag else self.current_round}.pt"
-            
-            # Save model state
+            checkpoint_path = self.checkpoint_dir / f"model_round_{tag}.pt"
             checkpoint = {
                 "model_state_dict": self.model.state_dict(),
                 "round": self.current_round,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                # Optional: Add optimizer state if needed for resuming training locally
+                # "optimizer_state_dict": optimizer.state_dict(),
             }
-            
             torch.save(checkpoint, checkpoint_path)
-            self.logger.debug(f"Saved model checkpoint to {checkpoint_path}")
-            
+            self.logger.info(f"Saved checkpoint to {checkpoint_path}")
         except Exception as e:
-            self.logger.error(f"Error saving checkpoint: {e}")
-    
+            self.logger.error(f"Error saving checkpoint: {e}", exc_info=True)
+
+
     def get_client_info(self) -> Dict[str, Any]:
-        """Get client information for registration"""
+        """Get client information for registration."""
+        if not self.initialized:
+             # Provide basic info even if not fully initialized
+             return {
+                "client_id": self.client_id,
+                "status": "initializing",
+                "timestamp": datetime.now().isoformat()
+             }
         return {
-            "id": self.client_id,
-            "name": f"client_{self.client_id}",
-            "train_size": getattr(self, "train_size", 0),
+            "client_id": self.client_id,
+            "train_size": self.train_size,
             "device": str(self.device),
-            "supports_encryption": self.crypto_engine.is_enabled(),
+            "supports_encryption": self.crypto_engine.config.enabled, # Reflects if context was loaded okay
+            "status": "idle", # Or "ready"
+            "input_shape": self.config.data.input_shape,
+            "output_shape": self.config.data.output_shape,
+            "task_type": self.config.model.task_type,
             "timestamp": datetime.now().isoformat()
         }
-    
+
     def load_checkpoint(self, path: str) -> bool:
-        """
-        Load model from checkpoint.
-        
-        Args:
-            path: Path to the checkpoint file
-            
-        Returns:
-            Whether loading was successful
-        """
+        """Load model from checkpoint."""
+        if not self.model:
+             self.logger.error("Cannot load checkpoint, model not initialized.")
+             return False
         try:
-            checkpoint = torch.load(path, map_location=self.device)
-            
+            checkpoint_path = Path(path)
+            if not checkpoint_path.is_file():
+                 self.logger.error(f"Checkpoint file not found: {path}")
+                 return False
+
+            checkpoint = torch.load(checkpoint_path, map_location=self.device)
             self.model.load_state_dict(checkpoint["model_state_dict"])
-            self.current_round = checkpoint.get("round", 0)
-            
-            self.logger.info(f"Loaded model checkpoint from {path}")
+            self.current_round = checkpoint.get("round", self.current_round) # Use current if not in ckpt
+            # Optional: Load optimizer state
+            # if "optimizer_state_dict" in checkpoint and optimizer:
+            #    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            self.logger.info(f"Loaded model checkpoint from {path} (Round {self.current_round})")
             return True
-            
         except Exception as e:
-            self.logger.error(f"Error loading checkpoint: {e}")
+            self.logger.error(f"Error loading checkpoint from {path}: {e}", exc_info=True)
             return False

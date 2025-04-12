@@ -152,9 +152,13 @@ class TestThreatDetectionFlow(unittest.TestCase):
         self.loop.run_until_complete(_test())
     
     @patch('threat_detection.analyzer.ThreatAnalyzer._apply_ml_detection')
-    def test_ml_detection_integration(self, mock_ml_detection):
+    @patch('threat_detection.analyzer.ThreatAnalyzer._apply_detection_rules')
+    def test_ml_detection_integration(self, mock_rules_detection, mock_ml_detection):
         """Test ML model integration in threat detection"""
         async def _test():
+            # Make rule-based detection return empty list
+            mock_rules_detection.return_value = []
+            
             # Create a mock ML detection
             ml_threat = MagicMock()
             ml_threat.id = "ml-threat-1"

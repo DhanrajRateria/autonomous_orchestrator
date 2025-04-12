@@ -33,7 +33,6 @@ class TestHomomorphicEngine(unittest.TestCase):
     def test_initialization(self):
         """Test that the engine initializes correctly"""
         self.assertIsNotNone(self.engine.context)
-        self.assertIsNotNone(self.engine.public_key)
         self.assertIsNotNone(self.engine.secret_key)
     
     def test_encrypt_decrypt_vector(self):
