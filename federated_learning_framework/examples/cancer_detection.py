@@ -197,11 +197,7 @@ async def prepare_data(num_clients: int, base_data_path: str, target_column: str
 async def run_federated_learning(config: FrameworkConfig, num_clients: int, client_data_paths: Dict[str, str]):
     """
     Runs the main federated learning simulation loop.
-
-    Args:
-        config: The FrameworkConfig object.
-        num_clients: Number of clients participating.
-        client_data_paths: Dictionary mapping client IDs to their data paths.
+    Orchestrates server rounds and client training.
     """
     server = None # Initialize server variable
     clients = {} # Initialize clients dictionary
@@ -228,14 +224,15 @@ async def run_federated_learning(config: FrameworkConfig, num_clients: int, clie
         init_results = await asyncio.gather(*initialization_tasks)
 
         successful_inits = 0
+        active_client_ids = [] # Keep track of clients ready to participate
         for i, result in enumerate(init_results):
             client_id = client_ids[i]
             if result:
                 logger.info(f"Client {client_id} initialized successfully.")
-                # Register successfully initialized clients
                 client_info = clients[client_id].get_client_info()
                 await server.register_client(client_id, client_info)
                 successful_inits += 1
+                active_client_ids.append(client_id) # Add to list of ready clients
             else:
                 logger.error(f"Failed to initialize client {client_id}. It will not participate.")
                 # Remove failed client from our dictionary
@@ -248,77 +245,93 @@ async def run_federated_learning(config: FrameworkConfig, num_clients: int, clie
             return
 
         # --- Run Federated Rounds ---
-        # Server now drives the rounds internally
-        await server.run_federated_rounds() # This loop handles selection, waiting, aggregation, evaluation
-
-        # --- [Simulation Part] ---
-        # In a real deployment, clients would run independently and respond to server.
-        # Here, we need to *trigger* the client training when the server selects them.
-        # We'll modify the server loop slightly or use a callback mechanism.
-        # For simplicity in this simulation, let's adapt the server loop (`run_federated_rounds`)
-        # to directly call the relevant clients after selection.
-
-        # --- Modified Simulation Loop (Conceptual - Requires Server Modification) ---
-        # Instead of calling server.run_federated_rounds() directly, we might do:
+        logger.info(f"Starting federated learning process for {config.federated.communication_rounds} rounds...")
         for round_num in range(1, config.federated.communication_rounds + 1):
-             if not server.is_running: break
+             if not server.is_running:
+                  logger.warning("Server stopped unexpectedly. Halting simulation.")
+                  break
 
              logger.info(f"----- Orchestrating Round {round_num} -----")
 
-             # Server selects clients and prepares config
-             round_config_package = await server.start_round_simulation() # New server method
-             if round_config_package is None: # Handles selection, param prep
-                 logger.warning(f"Server could not start round {round_num}. Skipping.")
-                 await asyncio.sleep(5)
-                 continue
+             # 1. Server starts round, selects clients, prepares config
+             # Uses server.current_round internally
+             round_package = await server.start_new_round()
 
-             selected_clients = round_config_package["selected_clients"]
+             if round_package is None:
+                 # Server logged the reason (max rounds or not enough clients)
+                 # If max rounds reached, break the loop
+                 if server.current_round >= server.max_rounds:
+                      break
+                 else: # Not enough clients, wait and continue loop
+                      logger.info(f"Waiting before retrying round {round_num}...")
+                      await asyncio.sleep(10) # Wait longer if clients are scarce
+                      continue # Try starting this round number again
+
+             selected_clients = round_package["selected_clients"]
              logger.info(f"Round {round_num}: Server selected clients: {selected_clients}")
 
-             # Trigger training on selected clients concurrently
+             # 2. Trigger training on selected clients concurrently
              training_tasks = []
              for client_id in selected_clients:
-                 if client_id in clients:
+                 if client_id in clients: # Check if client is still active in our simulation list
                       client = clients[client_id]
                       logger.debug(f"Dispatching training task to client {client_id} for round {round_num}")
+                      # Pass the parameters and config from the round package
                       training_tasks.append(
                           client.train(
-                              round_id=round_config_package["round_id"],
-                              parameters=round_config_package["parameters"],
-                              encrypted=round_config_package["encrypted"],
-                              config_update=round_config_package["client_config"]
+                              round_id=round_package["round_id"],
+                              parameters=round_package["parameters"],
+                              encrypted=round_package["encrypted"],
+                              config_update=round_package["client_config"] # Pass client-specific config
                           )
                       )
                  else:
                       logger.warning(f"Selected client {client_id} not found in active client list. Skipping.")
 
-             # Wait for training results
-             client_results = await asyncio.gather(*training_tasks)
+             # 3. Wait for training results from clients
+             # Add a timeout for client training? Maybe handled by server timeout eventually.
+             if not training_tasks:
+                  logger.warning(f"Round {round_num}: No valid clients to train. Skipping update submission.")
+                  # Need to tell server to skip aggregation? Or finalize_round handles empty updates.
+                  await server.finalize_round() # Finalize even if no tasks, logs skip
+                  continue
 
-             # Submit results to server
+             client_results = await asyncio.gather(*training_tasks, return_exceptions=True) # Catch exceptions during training
+
+             # 4. Submit results to server
              num_success = 0
-             for result in client_results:
-                  if result and result.get("status") == "success":
-                       client_id = result["client_id"]
-                       round_id = result["round_id"]
-                       logger.debug(f"Submitting update from {client_id} for round {round_id}")
-                       # Server internally handles validation and storage
-                       await server.submit_update(client_id, round_id, result)
-                       num_success += 1
-                  elif result:
-                       client_id = result.get("client_id", "unknown")
-                       error_msg = result.get("message", "unknown error")
-                       logger.error(f"Training failed on client {client_id}: {error_msg}")
-                       # Server's submit_update logic might already handle failed status
+             num_exceptions = 0
+             for i, result in enumerate(client_results):
+                 client_id = selected_clients[i] # Get client_id based on order
+                 if isinstance(result, Exception):
+                      logger.error(f"Training task for client {client_id} failed with exception: {result}", exc_info=result)
+                      num_exceptions += 1
+                      # Optionally inform the server about the client error
+                      # await server.client_heartbeat(client_id, {"status": "error", "message": str(result)})
+                 elif result and result.get("status") == "success":
+                      logger.debug(f"Submitting successful update from {client_id} for round {round_num}")
+                      await server.submit_update(client_id, round_num, result)
+                      num_success += 1
+                 elif result: # Handle cases where client returns {"status": "error", ...}
+                      error_msg = result.get("message", "unknown client error")
+                      logger.error(f"Training failed on client {client_id} (reported status): {error_msg}")
+                 else: # Should not happen if gather catches exceptions
+                      logger.error(f"Received unexpected empty result from client {client_id}")
 
-             logger.info(f"Round {round_num}: Received {num_success}/{len(selected_clients)} successful updates.")
 
-             # Server aggregates, evaluates, logs summary
-             await server.end_round_simulation() # New server method for post-update steps
+             logger.info(f"Round {round_num}: Submitted {num_success} successful updates to server.")
+             if num_exceptions > 0:
+                  logger.warning(f"Round {round_num}: Encountered exceptions in {num_exceptions} client training tasks.")
 
-        logger.info("Federated learning simulation finished.")
 
-        # Final evaluation already happens inside server's loop now.
+             # 5. Tell server to finalize the round (aggregate, evaluate)
+             await server.finalize_round()
+
+             # Optional: Add a small delay between rounds if needed
+             # await asyncio.sleep(1)
+
+        logger.info("Federated learning simulation loop finished.")
+        # Final evaluation is triggered inside finalize_round if max_rounds is reached
 
     except Exception as e:
         logger.error(f"An error occurred during the federated learning run: {e}", exc_info=True)
@@ -326,6 +339,9 @@ async def run_federated_learning(config: FrameworkConfig, num_clients: int, clie
         # --- Shutdown ---
         if server and server.is_running:
             logger.info("Shutting down server...")
+            # Check if final eval already happened
+            if not server.current_round >= server.max_rounds:
+                await server.run_final_evaluation() # Run if loop exited early
             await server.stop()
         logger.info("Federated learning process terminated.")
 
@@ -464,8 +480,8 @@ if __name__ == "__main__":
 
     # --- Add simulation methods to server ---
     # This feels a bit hacky, but avoids modifying the server class directly here
-    FederatedServer.start_round_simulation = start_round_simulation
-    FederatedServer.end_round_simulation = end_round_simulation
+    # FederatedServer.start_round_simulation = start_round_simulation
+    # FederatedServer.end_round_simulation = end_round_simulation
 
     # --- Run Main FL Process ---
     try:

@@ -33,7 +33,7 @@ def enable_he_in_config(input_config_path, output_config_path):
     # Keep existing scheme/params if they exist, otherwise use defaults
     config['crypto'].setdefault('scheme', 'CKKS')
     config['crypto'].setdefault('poly_modulus_degree', 8192)
-    config['crypto'].setdefault('coeff_mod_bit_sizes', [40, 20, 40])
+    config['crypto'].setdefault('coeff_mod_bit_sizes', [50, 40, 50])
     config['crypto'].setdefault('global_scale', 2**40)
     config['crypto'].setdefault('security_level', 128)
 

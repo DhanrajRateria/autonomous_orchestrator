@@ -233,40 +233,57 @@ class DataHandler:
             if df.empty:
                  self.logger.error("Loaded DataFrame is empty.")
                  return None
+            
+            cols_to_drop = []
+            if 'Unnamed: 32' in df.columns:
+                cols_to_drop.append('Unnamed: 32')
+
+            if cols_to_drop:
+                self.logger.warning(f"Dropping identified problematic columns: {cols_to_drop}")
+                df = df.drop(columns=cols_to_drop)
 
             # --- Identify Features and Target ---
             if self.data_config.target_column and self.data_config.target_column in df.columns:
                 target_col = self.data_config.target_column
-                if self.data_config.feature_columns:
-                    # Use specified feature columns, ensure target is not included
-                    feature_cols = [col for col in self.data_config.feature_columns if col != target_col]
-                    # Verify all specified feature columns exist
-                    missing_cols = [col for col in feature_cols if col not in df.columns]
-                    if missing_cols:
-                         raise ValueError(f"Specified feature columns not found in data: {missing_cols}")
-                else:
-                    # Use all columns except target
-                    feature_cols = [col for col in df.columns if col != target_col]
             else:
                 # Try to infer target (e.g., last column)
                 potential_targets = ['target', 'label', 'class', 'diagnosis', 'y']
                 target_col = df.columns[-1] # Default to last
                 for pt in potential_targets:
                     if pt in df.columns:
-                         target_col = pt
-                         break
+                        target_col = pt
+                        break
                 self.logger.warning(f"Target column not specified or found, inferring '{target_col}' as target.")
-                feature_cols = [col for col in df.columns if col != target_col]
-                # Update config if target was inferred
-                self.data_config.target_column = target_col
+                # Update config if target was inferred - do this carefully if clients use same config
+                # self.data_config.target_column = target_col # Might be better done once in generator
 
+            if target_col not in df.columns:
+                raise ValueError(f"Target column '{target_col}' not found in DataFrame after potential drops.")
+
+
+            # --- Determine Feature Columns to Use ---
+            # Start with columns specified in config, if available
+            if self.data_config.feature_columns:
+                # Filter config features: must exist in df and not be the target or dropped columns
+                feature_cols = [
+                    col for col in self.data_config.feature_columns
+                    if col in df.columns and col != target_col
+                ]
+                # Log if any specified features were missing or dropped
+                original_config_features = set(self.data_config.feature_columns)
+                final_used_features = set(feature_cols)
+                missing_or_dropped = original_config_features - final_used_features - {target_col} # Exclude target
+                if missing_or_dropped:
+                    self.logger.warning(f"Specified feature columns not used (missing or dropped): {list(missing_or_dropped)}")
+            else:
+                # If no features specified in config, use all remaining columns except target
+                feature_cols = [col for col in df.columns if col != target_col]
 
             if not feature_cols:
-                 raise ValueError("No feature columns identified.")
-            if target_col not in df.columns:
-                raise ValueError(f"Target column '{target_col}' not found in DataFrame.")
+                raise ValueError("No usable feature columns identified after filtering.")
 
-            self.original_feature_columns = list(feature_cols) # Store original names
+            self.logger.info(f"Using {len(feature_cols)} feature columns: {feature_cols[:10]}...") # Log first few
+            self.original_feature_columns = list(feature_cols) # Store names of columns *used* for processing
 
             # --- Preprocess Features ---
             X_list = [] # Collect processed feature columns/groups
@@ -388,15 +405,33 @@ class DataHandler:
 
             # --- Normalize Features ---
             if self.data_config.normalize and self.scaler:
-                # Fit scaler only on the first call (e.g., on server's full data), then transform
-                if not hasattr(self.scaler, "mean_"): # Check if scaler has been fitted
-                     self.logger.info("Fitting StandardScaler on features.")
-                     X = self.scaler.fit_transform(X)
+                if not hasattr(self.scaler, "scale_"): # Check if fitted using `scale_` attribute
+                    self.logger.info("Fitting StandardScaler on features.")
+                    # Add Robust Scaling: Handle zero variance columns
+                    try:
+                        # Use fit_transform only if not fitted
+                        X = self.scaler.fit_transform(X)
+                        # Check for NaNs *after* scaling
+                        if np.isnan(X).any():
+                            self.logger.warning("NaN values detected *after* scaling. Check input data variance. Attempting to impute NaNs with 0.")
+                            X = np.nan_to_num(X, nan=0.0) # Replace NaNs with 0 after scaling
+                    except ValueError as e:
+                        self.logger.error(f"Error during StandardScaler fit_transform: {e}. Check for columns with zero variance.")
+                        # Fallback: Skip normalization? Or impute before scaling?
+                        # For now, we try nan_to_num after potential error.
+                        X = np.nan_to_num(X, nan=0.0)
                 else:
-                     self.logger.info("Applying existing StandardScaler.")
-                     X = self.scaler.transform(X)
-            elif self.data_config.normalize and not self.scaler:
-                 self.logger.warning("Normalization enabled but scaler is None. Skipping normalization.")
+                    self.logger.info("Applying existing StandardScaler.")
+                    # Add Robust Scaling during transform too
+                    try:
+                        X = self.scaler.transform(X)
+                        if np.isnan(X).any():
+                            self.logger.warning("NaN values detected *after* scaling transform. Imputing with 0.")
+                            X = np.nan_to_num(X, nan=0.0)
+                    except ValueError as e:
+                        self.logger.error(f"Error during StandardScaler transform: {e}.")
+                        X = np.nan_to_num(X, nan=0.0)
+
 
 
             # --- Update Config Shapes ---

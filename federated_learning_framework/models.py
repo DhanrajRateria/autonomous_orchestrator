@@ -35,29 +35,24 @@ class MLP(nn.Module):
         current_dim = input_dim
         for h_dim in hidden_dims:
             layers.append(nn.Linear(current_dim, h_dim))
-            # Add activation
-            if activation.lower() == "relu":
-                layers.append(nn.ReLU())
-            elif activation.lower() == "sigmoid":
-                layers.append(nn.Sigmoid())
-            elif activation.lower() == "tanh":
-                layers.append(nn.Tanh())
-            else:
-                self.logger.warning(f"Unknown activation '{activation}', defaulting to ReLU.")
-                layers.append(nn.ReLU())
+            # --- ADD BatchNorm Here ---
+            layers.append(nn.BatchNorm1d(h_dim))
+            # -------------------------
+            # Add activation AFTER BatchNorm
+            if activation.lower() == "relu": layers.append(nn.ReLU())
+            elif activation.lower() == "sigmoid": layers.append(nn.Sigmoid())
+            elif activation.lower() == "tanh": layers.append(nn.Tanh())
+            else: layers.append(nn.ReLU())
             # Add dropout
-            if dropout_rate > 0:
-                layers.append(nn.Dropout(dropout_rate))
+            if dropout_rate > 0: layers.append(nn.Dropout(dropout_rate))
             current_dim = h_dim
 
         # Final output layer
         layers.append(nn.Linear(current_dim, output_dim))
-
-        # No final activation for CrossEntropyLoss (expects raw logits)
-        # No final activation for BCEWithLogitsLoss (expects raw logits)
-        # For regression, usually no final activation unless specific range needed.
+        # NO BatchNorm or Activation usually on the final output layer for classification/regression logits
 
         self.model = nn.Sequential(*layers)
+        self.logger.info("Added BatchNorm1d layers to MLP.")
 
     def forward(self, x):
         # Input shape check - crucial! DataHandler should ensure this.

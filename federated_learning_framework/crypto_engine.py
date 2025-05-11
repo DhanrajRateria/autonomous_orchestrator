@@ -340,12 +340,37 @@ class CryptoEngine:
 
     def homomorphic_multiply_scalar(self, enc_vec: ts.CKKSVector, scalar: float) -> Optional[ts.CKKSVector]:
         """Performs homomorphic multiplication by a plain scalar."""
-        if not self.is_enabled(): return None
+        if not self.is_enabled():
+            self.logger.warning("HE disabled: skipping homomorphic multiply.")
+            return None
+
         try:
-            # TenSEAL handles scalar multiplication directly
-            return enc_vec * scalar
+            # In TenSEAL, when you multiply a CKKSVector by a plaintext scalar,
+            # the library attempts to manage the scale of the resulting ciphertext.
+            # It generally tries to keep the scale consistent with the input vector's scale
+            # or the context's global_scale.
+
+            # Direct multiplication is the standard way:
+            result = enc_vec * scalar
+
+            # After multiplication, the result vector will have a scale.
+            # If this scale is drastically different from the context's global_scale,
+            # or if "scale out of bounds" errors occur, it indicates that the
+            # HE parameters (coeff_mod_bit_sizes, global_scale, poly_modulus_degree)
+            # are not well-suited for the precision and depth of operations required.
+
+            # No explicit rescaling loops are generally needed here for simple scalar multiplication.
+            # If rescaling is necessary, it's usually because the parameters
+            # don't provide enough "room" or "levels" in the modulus chain.
+
+            return result
+
+        except ValueError as ve:
+            # This is where "scale out of bounds" or other TenSEAL value errors would be caught.
+            self.logger.error(f"Homomorphic multiply by {scalar} failed with ValueError (likely scale or parameter issue): {ve}", exc_info=True)
+            return None
         except Exception as e:
-            self.logger.error(f"Homomorphic scalar multiplication failed: {e}", exc_info=True)
+            self.logger.error(f"Homomorphic multiply by {scalar} failed with other Exception: {e}", exc_info=True)
             return None
 
     def secure_aggregation(self, encrypted_vectors: List[ts.CKKSVector], weights: List[float]) -> Optional[ts.CKKSVector]:

@@ -294,173 +294,44 @@ class FederatedServer:
                     available_clients.append(client_id)
             return available_clients
 
-    # --- Federated Round Execution ---
-
-    async def run_federated_rounds(self):
-        """Main loop to orchestrate federated learning rounds."""
-        if not self.is_running:
-             self.logger.error("Server is not running. Cannot start rounds.")
-             return
-
-        self.logger.info(f"Starting federated training for {self.max_rounds} rounds...")
-
-        for round_num in range(1, self.max_rounds + 1):
-             if not self.is_running: # Check if server was stopped
-                  self.logger.info("Server stopped. Halting federated rounds.")
-                  break
-
-             async with self._round_lock: # Ensure only one round happens at a time
-                  self.current_round = round_num
-                  self.logger.info(f"===== Starting Federated Round {self.current_round}/{self.max_rounds} =====")
-                  round_start_time = time.time()
-
-                  # 1. Client Selection
-                  available_clients = await self.get_available_clients()
-                  self.logger.info(f"Available clients for selection: {len(available_clients)}")
-
-                  if len(available_clients) < self.config.federated.min_clients:
-                      self.logger.warning(f"Not enough available clients ({len(available_clients)}) to meet minimum ({self.config.federated.min_clients}). Skipping round {self.current_round}.")
-                      await asyncio.sleep(10) # Wait before trying next round
-                      continue
-
-                  # Selection strategy (random sampling)
-                  num_to_select = min(self.config.federated.clients_per_round, len(available_clients))
-                  self.selected_clients_this_round = np.random.choice(
-                      available_clients, num_to_select, replace=False
-                  ).tolist()
-                  self.logger.info(f"Selected {len(self.selected_clients_this_round)} clients for round {self.current_round}: {self.selected_clients_this_round}")
-
-                  # Reset results for the new round
-                  self.client_updates_this_round = {}
-
-
-                  # 2. Prepare Round Configuration (including model parameters)
-                  round_config = await self._prepare_round_start_config()
-                  if round_config is None:
-                       self.logger.error("Failed to prepare round configuration. Skipping round.")
-                       continue
-
-
-                  # 3. Dispatch Task to Selected Clients (Simulated - in real system, this involves network calls)
-                  # In this simulation, we assume cancer_detection.py drives client training calls.
-                  # We just need to wait for updates via submit_update.
-                  # We can simulate a timeout for clients to respond.
-                  round_timeout = 300 # seconds (e.g., 5 minutes) - adjust as needed
-                  self.logger.info(f"Waiting for updates from {len(self.selected_clients_this_round)} clients (Timeout: {round_timeout}s)...")
-
-
-                  # 4. Wait for and Collect Client Updates
-                  start_wait_time = time.time()
-                  while time.time() - start_wait_time < round_timeout:
-                       num_received = len(self.client_updates_this_round)
-                       if num_received >= len(self.selected_clients_this_round):
-                           self.logger.info("Received updates from all selected clients.")
-                           break
-                       # Log progress periodically
-                       # if int(time.time() - start_wait_time) % 30 == 0:
-                       #      self.logger.debug(f"Waiting... Received {num_received}/{len(self.selected_clients_this_round)} updates.")
-                       await asyncio.sleep(2) # Check periodically
-
-                  # Check results after timeout or completion
-                  num_received = len(self.client_updates_this_round)
-                  self.logger.info(f"Update collection finished. Received {num_received}/{len(self.selected_clients_this_round)} updates for round {self.current_round}.")
-
-                  if num_received == 0:
-                       self.logger.warning("No client updates received for this round. Skipping aggregation.")
-                       continue # Skip to next round
-
-
-                  # 5. Aggregate Updates and Update Global Model
-                  await self._aggregate_and_update()
-
-
-                  # 6. Evaluate Global Model
-                  if self.val_dataloader: # Only evaluate if validation data exists
-                      self.logger.info("Evaluating updated global model...")
-                      self.global_eval_metrics = await self._evaluate_model(self.val_dataloader)
-                      self.logger.info(f"Round {self.current_round} Validation Metrics: {self.global_eval_metrics}")
-
-                      # Track best model based on validation accuracy (or loss if regression)
-                      metric_to_track = 'accuracy' if self.config.model.task_type != 'regression' else 'loss'
-                      current_metric = self.global_eval_metrics.get(metric_to_track)
-
-                      if current_metric is not None:
-                          # Higher accuracy is better, lower loss is better
-                          is_better = (metric_to_track == 'accuracy' and current_metric > self.best_model_metric_value) or \
-                                      (metric_to_track == 'loss' and current_metric < (self.best_model_metric_value if self.best_model_round > 0 else float('inf')))
-
-                          if is_better:
-                              self.logger.info(f"New best model found! Round {self.current_round}, {metric_to_track}: {current_metric:.4f}")
-                              self.best_model_metric_value = current_metric
-                              self.best_model_round = self.current_round
-                              self._save_checkpoint("best")
-
-                  else:
-                       self.logger.info("Skipping global model evaluation (no validation data).")
-
-
-                  # 7. Log Round Summary and Save History
-                  self._log_round_summary(round_start_time)
-                  self._record_history()
-
-                  # 8. Save Periodic Checkpoint
-                  if self.current_round % self.config.system.get('checkpoint_frequency', 10) == 0:
-                      self._save_checkpoint(f"round_{self.current_round}")
-
-
-                  self.logger.info(f"===== Finished Federated Round {self.current_round} =====")
-
-        self.logger.info("Maximum rounds reached or server stopped. Federated training finished.")
-        # Final evaluation on test set
-        await self.run_final_evaluation()
-
-
     async def _prepare_round_start_config(self) -> Optional[Dict[str, Any]]:
-        """Get current model parameters (encrypt if needed) and package round config."""
+        """Get current model parameters (ALWAYS PLAIN for clients) and package round config."""
         async with self._model_lock:
-             if not self.model:
-                  self.logger.error("Global model not available for preparing round config.")
-                  return None
-             try:
-                 self.logger.debug("Cloning model state for parameter extraction.")
-                 # Work on a copy in CPU memory to avoid blocking GPU if model is large
-                 model_copy = copy.deepcopy(self.model).cpu()
+            if not self.model:
+                self.logger.error("Global model not available for preparing round config.")
+                return None
+            try:
+                self.logger.debug("Cloning model state for parameter extraction.")
+                model_copy = copy.deepcopy(self.model).cpu()
 
-                 if self.crypto_engine.is_enabled():
-                     self.logger.info("Encrypting global model parameters for round start...")
-                     start_enc = time.time()
-                     model_params = self.crypto_engine.encrypt_torch_params(model_copy)
-                     params_encrypted = True
-                     if not model_params:
-                          raise RuntimeError("Parameter encryption failed.")
-                     self.logger.info(f"Parameter encryption took {time.time() - start_enc:.2f}s")
-                 else:
-                     # Extract plain numpy parameters
-                     model_params = {name: param.cpu().detach().numpy()
-                                     for name, param in model_copy.named_parameters()}
-                     params_encrypted = False
+                # --- CHANGE: Always send plain parameters to clients ---
+                self.logger.info("Exporting PLAIN global model parameters for round start...")
+                model_params = {name: param.cpu().detach().numpy()
+                                for name, param in model_copy.named_parameters()}
+                params_encrypted = False # Set flag to False
+                # --- END CHANGE ---
 
-                 # Round-specific configuration for clients
-                 client_round_config = {
-                     "local_epochs": self.config.federated.local_epochs,
-                     "learning_rate": self.config.federated.client_learning_rate,
-                     "batch_size": self.config.data.batch_size,
-                     # Add FedProx term if implementing FedProx
-                     # "proximal_mu": self.config.federated.proximal_mu
-                 }
+                # Round-specific configuration for clients
+                client_round_config = {
+                    "local_epochs": self.config.federated.local_epochs,
+                    "learning_rate": self.config.federated.client_learning_rate,
+                    "batch_size": self.config.data.batch_size,
+                    # "proximal_mu": self.config.federated.proximal_mu
+                }
 
-                 round_config_package = {
-                     "round_id": self.current_round,
-                     "parameters": model_params,
-                     "encrypted": params_encrypted,
-                     "client_config": client_round_config,
-                     "timestamp": datetime.now().isoformat()
-                 }
-                 return round_config_package
+                round_config_package = {
+                    "round_id": self.current_round,
+                    "parameters": model_params, # Plain parameters
+                    "encrypted": params_encrypted, # False
+                    "client_config": client_round_config,
+                    "timestamp": datetime.now().isoformat()
+                }
+                return round_config_package
 
-             except Exception as e:
-                  self.logger.error(f"Error preparing round start config: {e}", exc_info=True)
-                  return None
+            except Exception as e:
+                self.logger.error(f"Error preparing round start config: {e}", exc_info=True)
+                return None
+
 
 
     async def submit_update(self, client_id: str, round_id: int, update_data: Dict[str, Any]):
@@ -861,6 +732,109 @@ class FederatedServer:
         else:
             self.logger.warning("No test data loaded. Skipping final evaluation.")
         self.logger.info("==============================================")
+
+    async def start_new_round(self) -> Optional[Dict[str, Any]]:
+        """
+        Selects clients for a new round and prepares the configuration package.
+        Returns the package or None if round cannot be started.
+        """
+        async with self._round_lock: # Ensure only one round starts at a time
+            if self.current_round >= self.max_rounds:
+                self.logger.info("Maximum rounds reached.")
+                return None
+
+            # Increment round counter *before* selection and config prep
+            self.current_round += 1
+            self.logger.info(f"===== Starting Round {self.current_round}/{self.max_rounds} =====")
+
+            available_clients = await self.get_available_clients()
+            self.logger.info(f"Available clients for selection: {len(available_clients)}")
+
+            if len(available_clients) < self.config.federated.min_clients:
+                self.logger.warning(f"Not enough available clients ({len(available_clients)}) to meet minimum ({self.config.federated.min_clients}). Skipping round {self.current_round}.")
+                # Decrement round counter as it's skipped immediately
+                self.current_round -= 1
+                await asyncio.sleep(5) # Wait a bit before next attempt
+                return None # Signal that round was skipped
+
+            num_to_select = min(self.config.federated.clients_per_round, len(available_clients))
+            self.selected_clients_this_round = np.random.choice(
+                available_clients, num_to_select, replace=False
+            ).tolist()
+            self.logger.info(f"Selected {len(self.selected_clients_this_round)} clients for round {self.current_round}: {self.selected_clients_this_round}")
+
+            # Reset updates for the new round
+            self.client_updates_this_round = {}
+
+            # Prepare parameters and configuration
+            round_config_package = await self._prepare_round_start_config() # Uses self.current_round internally
+            if round_config_package is None:
+                self.logger.error("Failed to prepare round configuration. Skipping round.")
+                self.current_round -= 1 # Decrement round counter
+                return None
+
+            # Add selected clients list to the package for the orchestrator
+            round_config_package["selected_clients"] = self.selected_clients_this_round
+            return round_config_package
+        
+    async def finalize_round(self) -> bool:
+        """
+        Aggregates received updates, updates the global model, evaluates, and logs history.
+        Should be called by the orchestrator after submitting client updates.
+        Returns True if aggregation happened, False otherwise.
+        """
+        async with self._round_lock: # Protect aggregation and evaluation steps
+            self.logger.info(f"Finalizing Round {self.current_round}...")
+            round_start_time = time.time() # Placeholder time for logging duration
+
+            num_received = len(self.client_updates_this_round)
+            if num_received == 0:
+                self.logger.warning("No client updates received for this round. Skipping aggregation and evaluation.")
+                # Record history indicating skip
+                self._record_history() # Record skip status
+                self._log_round_summary(round_start_time)
+                self.logger.info(f"===== Finished Round {self.current_round} (Skipped) =====")
+                return False
+
+            # --- Aggregate and Update ---
+            await self._aggregate_and_update() # Handles HE/Plain aggregation, DP
+
+            # --- Evaluate ---
+            if self.val_dataloader:
+                self.logger.info("Evaluating updated global model (Validation)...")
+                self.global_eval_metrics = await self._evaluate_model(self.val_dataloader)
+                self.logger.info(f"Round {self.current_round} Validation Metrics: {self.global_eval_metrics}")
+                # Track best model
+                metric_to_track = 'accuracy' if self.config.model.task_type != 'regression' else 'loss'
+                current_metric = self.global_eval_metrics.get(metric_to_track)
+                if current_metric is not None:
+                    is_better = (metric_to_track == 'accuracy' and current_metric > self.best_model_metric_value) or \
+                                (metric_to_track == 'loss' and current_metric < (self.best_model_metric_value if self.best_model_round > 0 else float('inf')))
+                    if is_better:
+                        self.logger.info(f"New best model found! Round {self.current_round}, {metric_to_track}: {current_metric:.4f}")
+                        self.best_model_metric_value = current_metric
+                        self.best_model_round = self.current_round
+                        self._save_checkpoint("best")
+            else:
+                 self.logger.info("Skipping global model evaluation (no validation data).")
+
+            # --- Log History & Summary ---
+            self._record_history()
+            self._log_round_summary(round_start_time)
+
+            # --- Periodic Checkpoint ---
+            if self.current_round % self.config.system.checkpoint_frequency == 0:
+                 self._save_checkpoint(f"round_{self.current_round}")
+
+            self.logger.info(f"===== Finished Round {self.current_round} =====")
+
+            # --- Check if Training Finished ---
+            if self.current_round >= self.max_rounds:
+                 self.logger.info("Maximum rounds reached.")
+                 await self.run_final_evaluation()
+                 # Consider stopping the server? Or let the main script handle stop.
+
+            return True # Indicate aggregation/evaluation happened
 
     # --- Persistence & Logging ---
 

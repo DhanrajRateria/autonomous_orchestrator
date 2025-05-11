@@ -198,8 +198,9 @@ class FederatedClient:
 
             # 2. Set up Optimizer (always use parameters from the current model state)
             # Consider allowing optimizer choice from config (Adam, etc.)
-            optimizer = optim.SGD(self.model.parameters(), lr=client_lr, momentum=0.9)
-            # optimizer = optim.Adam(self.model.parameters(), lr=client_lr)
+            # optimizer = optim.SGD(self.model.parameters(), lr=client_lr, momentum=0.9)
+            optimizer = optim.Adam(self.model.parameters(), lr=client_lr) # NEW Adam
+            self.logger.info(f"Using Adam optimizer with LR={client_lr}")
 
             # 3. Train for local epochs
             self.model.train() # Set model to training mode
@@ -241,7 +242,7 @@ class FederatedClient:
             })
 
             # Save checkpoint periodically (optional)
-            if round_id % self.config.system.get('checkpoint_frequency', 10) == 0:
+            if round_id % self.config.system.checkpoint_frequency == 0:
                 self._save_checkpoint(f"round_{round_id}")
 
             self.logger.info(f"Local training round {round_id} completed in {end_time - start_time:.2f}s.")
@@ -324,6 +325,9 @@ class FederatedClient:
                 # clip_value = self.config.privacy.gradient_clipping
                 # if clip_value > 0:
                 #    nn.utils.clip_grad_norm_(self.model.parameters(), clip_value)
+                clip_value = self.config.privacy.gradient_clipping # Get value from config
+                if clip_value > 0:
+                    total_norm = nn.utils.clip_grad_norm_(self.model.parameters(), clip_value)
                 optimizer.step()
 
                 # --- Statistics Update ---
