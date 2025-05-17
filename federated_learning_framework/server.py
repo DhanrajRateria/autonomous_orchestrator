@@ -194,8 +194,7 @@ class FederatedServer:
         try:
             # Load using the main data path from config
             # We only need validation and test sets on the server
-            _, self.val_dataloader, self.test_dataloader = await asyncio.to_thread(
-                self.data_handler.load_data,
+            _, self.val_dataloader, self.test_dataloader = await self.data_handler.load_data(
                 data_override_path=None, # Use config.data.data_path
                 val_split=self.config.data.val_split,
                 test_split=self.config.data.test_split
@@ -384,80 +383,367 @@ class FederatedServer:
         self.logger.info("Starting aggregation process...")
         aggregation_start_time = time.time()
 
-        valid_updates = list(self.client_updates_this_round.values())
+        valid_updates = [upd for upd in self.client_updates_this_round.values() if upd.get("status") == "success"]
         if not valid_updates:
             self.logger.warning("No valid updates available for aggregation.")
             return
 
-        # --- Prepare weights (FedAvg) ---
-        total_samples = sum(update["sample_size"] for update in valid_updates)
-        if total_samples == 0:
-            self.logger.warning("Total sample size is zero. Using equal weights for aggregation.")
-            weights = [1.0 / len(valid_updates)] * len(valid_updates)
-        else:
-            weights = [update["sample_size"] / total_samples for update in valid_updates]
+        # --- Extract Quality Scores and Sample Sizes ---
+        client_quality_scores_raw = [update.get("quality_score") for update in valid_updates]
+        client_sample_sizes = [update.get("sample_size", 0) for update in valid_updates]
+        total_samples = sum(client_sample_sizes)
 
-        self.logger.info(f"Aggregating {len(valid_updates)} updates using FedAvg. Total samples: {total_samples}")
-        # self.logger.debug(f"Aggregation weights: {weights}")
+        self.logger.info(f"Raw quality scores received: {client_quality_scores_raw}")
 
-        # Determine if updates are encrypted (check the first valid update)
+        weights: List[float]
+
+        if self.config.quality.enabled:
+            self.logger.info("Using quality-aware aggregation.")
+            # Filter out None, NaN, Inf scores before processing
+            valid_scores_indices = [i for i, s in enumerate(client_quality_scores_raw)
+                                    if s is not None and not np.isnan(s) and not np.isinf(s) and s > 0] # Ensure positive scores
+
+            if not valid_scores_indices:
+                self.logger.warning("No valid positive quality scores reported. Falling back to FedAvg (sample-size based weights).")
+                weights = [s / total_samples if total_samples > 0 else 1.0 / len(valid_updates) for s in client_sample_sizes]
+            else:
+                processed_scores = np.array([client_quality_scores_raw[i] for i in valid_scores_indices])
+                self.logger.info(f"Processed (valid positive) scores: {processed_scores}")
+
+                if self.config.quality.robust_score_aggregation and len(processed_scores) > 1: # Percentile needs >1 score
+                    lower_p = self.config.quality.score_clip_percentile_lower
+                    upper_p = self.config.quality.score_clip_percentile_upper
+                    lower_bound = np.percentile(processed_scores, lower_p)
+                    upper_bound = np.percentile(processed_scores, upper_p)
+                    
+                    # Ensure lower_bound is not excessively large if all scores are tiny, and upper_bound not too small
+                    # This can happen if all scores are identical or nearly identical.
+                    if upper_bound <= lower_bound and len(processed_scores) > 0: # If all scores are same, or range is tiny
+                        # If upper_bound is problematic (e.g. 0 or negative), use a small positive value or mean
+                        if upper_bound <= self.config.quality.score_epsilon:
+                            upper_bound = max(np.mean(processed_scores), self.config.quality.score_epsilon*2)
+                        if lower_bound >= upper_bound: # if lower bound ended up higher
+                            lower_bound = upper_bound / 2.0 # or some other sensible small value
+
+                    self.logger.info(f"Quality scores: Min={processed_scores.min():.4e}, Max={processed_scores.max():.4e}, Mean={processed_scores.mean():.4e}. "
+                                   f"Clipping to percentile range [{lower_p}th={lower_bound:.4e}, {upper_p}th={upper_bound:.4e}]")
+                    clipped_scores_values = np.clip(processed_scores, lower_bound, upper_bound)
+                else:
+                    clipped_scores_values = processed_scores
+                    if len(processed_scores) <=1 and self.config.quality.robust_score_aggregation:
+                        self.logger.info("Robust score aggregation enabled, but too few scores (<2) to apply percentile clipping. Using raw valid scores.")
+                    else:
+                        self.logger.info("Robust score aggregation disabled or not applicable. Using raw valid scores.")
+
+                # Normalize clipped scores to sum to 1 to be used as weights
+                # Assign weights back to the original 'valid_updates' structure
+                temp_weights = {} # client_id -> weight
+                current_sum_clipped_scores = np.sum(clipped_scores_values)
+                if current_sum_clipped_scores > 1e-9: # Avoid division by zero
+                    normalized_clipped_scores = clipped_scores_values / current_sum_clipped_scores
+                    for i, original_idx in enumerate(valid_scores_indices):
+                        client_id = valid_updates[original_idx]["client_id"]
+                        temp_weights[client_id] = normalized_clipped_scores[i]
+                else:
+                    self.logger.warning("Sum of (clipped) quality scores is zero or negligible. Falling back to FedAvg (sample-size based weights).")
+                    # Fallback logic assigned later
+
+                # Create final weights list matching 'valid_updates' order
+                final_quality_weights = []
+                sum_final_weights = 0
+                for update in valid_updates:
+                    w = temp_weights.get(update["client_id"], 0.0) # Default to 0 if score was invalid
+                    final_quality_weights.append(w)
+                    sum_final_weights += w
+                
+                if sum_final_weights > 1e-9:
+                    weights = [w / sum_final_weights for w in final_quality_weights] # Re-normalize
+                else: # Fallback if all quality based weights ended up zero
+                    self.logger.warning("All quality-based weights are zero. Falling back to FedAvg (sample-size based weights).")
+                    weights = [s / total_samples if total_samples > 0 else 1.0 / len(valid_updates) for s in client_sample_sizes]
+
+        else: # Quality-aware aggregation disabled, use standard FedAvg
+            self.logger.info("Quality-aware aggregation disabled. Using FedAvg (sample-size based weights).")
+            if total_samples == 0:
+                self.logger.warning("Total sample size is zero. Using equal weights for aggregation.")
+                weights = [1.0 / len(valid_updates)] * len(valid_updates)
+            else:
+                weights = [s / total_samples for s in client_sample_sizes]
+
+        self.logger.info(f"Aggregating {len(valid_updates)} delta updates. Aggregation weights: {[f'{w:.3f}' for w in weights]}")
+
         are_updates_encrypted = valid_updates[0].get("encrypted", False)
-        self.logger.info(f"Updates are {'encrypted' if are_updates_encrypted else 'plain'}.")
+        self.logger.info(f"Updates (deltas) are {'encrypted' if are_updates_encrypted else 'plain'}.")
 
-
-        # --- Perform Aggregation ---
         async with self._model_lock:
-             try:
-                 if are_updates_encrypted:
-                     if not self.crypto_engine.is_enabled():
-                         self.logger.error("Received encrypted updates but HE is disabled on server. Cannot aggregate.")
-                         return
-                     # Secure Aggregation using HE
-                     aggregated_params = await self._aggregate_encrypted_updates(valid_updates, weights)
-                     if aggregated_params is None:
-                          raise RuntimeError("Encrypted aggregation failed.")
+            try:
+                aggregated_delta_dict: Optional[Dict[str, Any]] = None # Stores processed delta (encrypted dict or plain numpy dict)
 
-                     # Decrypt and update model
-                     self.logger.info("Decrypting aggregated parameters...")
-                     start_dec = time.time()
-                     self.crypto_engine.decrypt_to_torch_params(self.model, aggregated_params)
-                     self.logger.info(f"Decryption and model update took {time.time() - start_dec:.2f}s")
+                if are_updates_encrypted:
+                    if not self.crypto_engine.is_enabled():
+                        self.logger.error("Received encrypted deltas but HE is disabled on server. Cannot aggregate.")
+                        return
+                    # Secure Aggregation of DELTAS using HE
+                    # _aggregate_encrypted_updates needs list of encrypted delta dicts and weights
+                    client_encrypted_deltas = [upd["parameters"] for upd in valid_updates] # These are Dict[str, EncryptedDataStruct]
+                    aggregated_delta_dict = await self._aggregate_encrypted_deltas_he(client_encrypted_deltas, weights)
+                    if aggregated_delta_dict is None:
+                        raise RuntimeError("Encrypted delta aggregation failed.")
+                else:
+                    # Standard FedAvg Aggregation on plain DELTAS
+                    client_plain_deltas = [upd["parameters"] for upd in valid_updates] # These are Dict[str, np.ndarray]
+                    aggregated_delta_dict = self._aggregate_plain_deltas(client_plain_deltas, weights)
+                    if aggregated_delta_dict is None:
+                        raise RuntimeError("Plain delta aggregation failed.")
 
-                 else:
-                     # Standard FedAvg Aggregation
-                     aggregated_params = self._aggregate_plain_updates(valid_updates, weights)
-                     if aggregated_params is None:
-                           raise RuntimeError("Plain aggregation failed.")
+                # --- Decrypt aggregated delta if it was encrypted ---
+                decrypted_final_delta_np: Dict[str, np.ndarray]
+                if are_updates_encrypted:
+                    if aggregated_delta_dict is None: # Should have been caught by RuntimeError above
+                        self.logger.error("Encrypted aggregated delta is None before decryption.")
+                        return
+                    self.logger.info("Decrypting aggregated delta...")
+                    start_dec = time.time()
+                    decrypted_final_delta_np = self.crypto_engine.decrypt_model_params(aggregated_delta_dict)
+                    self.logger.info(f"Decryption of aggregated delta took {time.time() - start_dec:.2f}s")
+                    if not decrypted_final_delta_np : # If decryption returns empty dict due to errors
+                        raise RuntimeError("Aggregated delta decryption failed or yielded no parameters.")
+                else:
+                    decrypted_final_delta_np = aggregated_delta_dict # It's already Dict[str, np.ndarray]
 
-                     # Update model with plain aggregated parameters
-                     self.logger.info("Updating global model with plain aggregated parameters...")
-                     with torch.no_grad():
-                         for name, param in self.model.named_parameters():
-                             if name in aggregated_params:
-                                 agg_tensor = torch.from_numpy(aggregated_params[name]).to(param.device)
-                                 if param.shape == agg_tensor.shape:
-                                     param.copy_(agg_tensor)
-                                 else:
-                                      self.logger.error(f"Shape mismatch during plain aggregation update for '{name}': Model={param.shape}, Aggregated={agg_tensor.shape}. Skipping.")
-                             else:
-                                  self.logger.warning(f"Aggregated parameter '{name}' not found. Model parameter unchanged.")
+                # --- Apply Aggregated Delta to Global Model ---
+                self.logger.info("Applying aggregated delta to global model...")
+                num_params_updated = 0
+                with torch.no_grad():
+                    for name, param in self.model.named_parameters():
+                        if name in decrypted_final_delta_np:
+                            delta_val = decrypted_final_delta_np[name]
+                            if not isinstance(delta_val, np.ndarray):
+                                self.logger.error(f"Decrypted delta for '{name}' is not a numpy array (type: {type(delta_val)}). Skipping update for this param.")
+                                continue
+                            
+                            delta_tensor = torch.from_numpy(delta_val).to(param.device)
+                            if param.shape == delta_tensor.shape:
+                                param.add_(delta_tensor) # GLOBAL_MODEL = GLOBAL_MODEL + AGGREGATED_DELTA
+                                num_params_updated +=1
+                            else:
+                                self.logger.error(f"Shape mismatch applying delta for '{name}': ModelParam={param.shape}, AggDelta={delta_tensor.shape}. Skipping.")
+                        else:
+                            self.logger.warning(f"Aggregated delta for parameter '{name}' not found. Parameter unchanged.")
+                
+                if num_params_updated == 0 and len(list(self.model.parameters())) > 0:
+                    self.logger.error("No parameters in the global model were updated with the aggregated delta. Check delta content and names.")
+                else:
+                    self.logger.info(f"Successfully applied aggregated delta to {num_params_updated} model parameter groups.")
 
 
-                 # --- Apply Server-Side DP Noise (Optional) ---
-                 # This adds noise *after* aggregation.
-                 if self.dp_engine:
-                     self.logger.info("Applying differential privacy noise to the global model...")
-                     # Note: This adds noise directly to parameters. Adding noise to the
-                     # *aggregated update delta* might be more standard.
-                     self.dp_engine.add_noise_to_model(self.model)
+                # Apply Server-Side DP Noise (Optional)
+                if self.dp_engine and self.config.privacy.differential_privacy:
+                    self.logger.info("Applying differential privacy noise to the global model...")
+                    self.dp_engine.add_noise_to_model(self.model) # Applies to full model params
+
+                aggregation_duration = time.time() - aggregation_start_time
+                self.logger.info(f"Aggregation and model update (with deltas) completed in {aggregation_duration:.2f}s.")
+
+            except Exception as e:
+                self.logger.error(f"Error during aggregation and model update: {e}", exc_info=True)
+
+        # # --- Prepare weights (FedAvg) ---
+        # total_samples = sum(update["sample_size"] for update in valid_updates)
+        # if total_samples == 0:
+        #     self.logger.warning("Total sample size is zero. Using equal weights for aggregation.")
+        #     weights = [1.0 / len(valid_updates)] * len(valid_updates)
+        # else:
+        #     weights = [update["sample_size"] / total_samples for update in valid_updates]
+
+        # self.logger.info(f"Aggregating {len(valid_updates)} updates using FedAvg. Total samples: {total_samples}")
+        # # self.logger.debug(f"Aggregation weights: {weights}")
+
+        # # Determine if updates are encrypted (check the first valid update)
+        # are_updates_encrypted = valid_updates[0].get("encrypted", False)
+        # self.logger.info(f"Updates are {'encrypted' if are_updates_encrypted else 'plain'}.")
 
 
-                 aggregation_duration = time.time() - aggregation_start_time
-                 self.logger.info(f"Aggregation and model update completed in {aggregation_duration:.2f}s.")
+        # # --- Perform Aggregation ---
+        # async with self._model_lock:
+        #      try:
+        #          if are_updates_encrypted:
+        #              if not self.crypto_engine.is_enabled():
+        #                  self.logger.error("Received encrypted updates but HE is disabled on server. Cannot aggregate.")
+        #                  return
+        #              # Secure Aggregation using HE
+        #              aggregated_params = await self._aggregate_encrypted_updates(valid_updates, weights)
+        #              if aggregated_params is None:
+        #                   raise RuntimeError("Encrypted aggregation failed.")
 
-             except Exception as e:
-                  self.logger.error(f"Error during aggregation and model update: {e}", exc_info=True)
+        #              # Decrypt and update model
+        #              self.logger.info("Decrypting aggregated parameters...")
+        #              start_dec = time.time()
+        #              self.crypto_engine.decrypt_to_torch_params(self.model, aggregated_params)
+        #              self.logger.info(f"Decryption and model update took {time.time() - start_dec:.2f}s")
 
+        #          else:
+        #              # Standard FedAvg Aggregation
+        #              aggregated_params = self._aggregate_plain_updates(valid_updates, weights)
+        #              if aggregated_params is None:
+        #                    raise RuntimeError("Plain aggregation failed.")
+
+        #              # Update model with plain aggregated parameters
+        #              self.logger.info("Updating global model with plain aggregated parameters...")
+        #              with torch.no_grad():
+        #                  for name, param in self.model.named_parameters():
+        #                      if name in aggregated_params:
+        #                          agg_tensor = torch.from_numpy(aggregated_params[name]).to(param.device)
+        #                          if param.shape == agg_tensor.shape:
+        #                              param.copy_(agg_tensor)
+        #                          else:
+        #                               self.logger.error(f"Shape mismatch during plain aggregation update for '{name}': Model={param.shape}, Aggregated={agg_tensor.shape}. Skipping.")
+        #                      else:
+        #                           self.logger.warning(f"Aggregated parameter '{name}' not found. Model parameter unchanged.")
+
+
+        #          # --- Apply Server-Side DP Noise (Optional) ---
+        #          # This adds noise *after* aggregation.
+        #          if self.dp_engine:
+        #              self.logger.info("Applying differential privacy noise to the global model...")
+        #              # Note: This adds noise directly to parameters. Adding noise to the
+        #              # *aggregated update delta* might be more standard.
+        #              self.dp_engine.add_noise_to_model(self.model)
+
+
+        #          aggregation_duration = time.time() - aggregation_start_time
+        #          self.logger.info(f"Aggregation and model update completed in {aggregation_duration:.2f}s.")
+
+        #      except Exception as e:
+        #           self.logger.error(f"Error during aggregation and model update: {e}", exc_info=True)
+
+    async def _aggregate_encrypted_deltas_he(self, client_deltas_list: List[Dict[str, Any]], weights: List[float]) -> Optional[Dict[str, Any]]:
+        """
+        Aggregates a list of client deltas, where each delta is a dictionary of
+        TenSEAL-encrypted parameter structures.
+        (This is very similar to your previous _aggregate_encrypted_updates, just acting on deltas)
+        """
+        self.logger.info("Performing secure aggregation of encrypted DELTAS with HE...")
+        if not client_deltas_list: return None
+        
+        aggregated_encrypted_deltas = {}
+        # Assume all client_deltas in the list have the same parameter names and structure
+        # (e.g., {"type": "tensor", "shape": ..., "data": serialized_encrypted_vector_str})
+        param_names = list(client_deltas_list[0].keys())
+
+        for name in param_names:
+            param_structs_for_this_name = []
+            current_weights_for_this_param = []
+
+            for i, client_delta_dict in enumerate(client_deltas_list):
+                if name in client_delta_dict:
+                    param_structs_for_this_name.append(client_delta_dict[name])
+                    current_weights_for_this_param.append(weights[i])
+                else:
+                    self.logger.warning(f"Encrypted delta for param '{name}' missing from a client. Skipping that client for this param.")
+
+            if not param_structs_for_this_name:
+                self.logger.error(f"No encrypted deltas found for param '{name}' across all clients. Skipping.")
+                continue
+            
+            # Renormalize weights if some clients were skipped for this parameter
+            if len(current_weights_for_this_param) < len(weights):
+                sum_current_weights = sum(current_weights_for_this_param)
+                if sum_current_weights > 1e-9:
+                    current_weights_for_this_param = [w / sum_current_weights for w in current_weights_for_this_param]
+                else: # All remaining weights are zero, cannot proceed for this param
+                    self.logger.error(f"All effective weights for param '{name}' are zero after filtering. Skipping.")
+                    continue
+            
+            # All param_structs_for_this_name should be like:
+            # {"type": "tensor", "shape": [..], "data": "serialized_ckks_vector_string"}
+            param_type = param_structs_for_this_name[0].get("type")
+            shape = param_structs_for_this_name[0].get("shape")
+            serialized_data_list = [p_info["data"] for p_info in param_structs_for_this_name]
+
+            try:
+                encrypted_vectors = [self.crypto_engine.deserialize_vector(s_data) for s_data in serialized_data_list]
+                valid_indices = [i for i, vec in enumerate(encrypted_vectors) if vec is not None and isinstance(vec, ts.CKKSVector)]
+
+                if len(valid_indices) < len(encrypted_vectors):
+                    self.logger.warning(f"Could not deserialize all encrypted vectors for param delta '{name}'. Using {len(valid_indices)} valid vectors.")
+                    if not valid_indices:
+                        self.logger.error(f"No valid encrypted delta vectors to aggregate for param '{name}'. Skipping.")
+                        continue
+                    encrypted_vectors = [encrypted_vectors[i] for i in valid_indices]
+                    # Adjust weights again for only the successfully deserialized vectors
+                    current_weights_for_this_param = [current_weights_for_this_param[i] for i in valid_indices]
+                    sum_current_weights = sum(current_weights_for_this_param)
+                    if sum_current_weights > 1e-9:
+                         current_weights_for_this_param = [w / sum_current_weights for w in current_weights_for_this_param]
+                    else:
+                         self.logger.error(f"All effective weights for param '{name}' are zero after deserialization filtering. Skipping.")
+                         continue
+            except Exception as e:
+                self.logger.error(f"Error deserializing delta vectors for param '{name}': {e}", exc_info=True)
+                continue
+
+            # Perform HE Aggregation (weighted sum of encrypted delta vectors)
+            aggregated_enc_vector = self.crypto_engine.secure_aggregation(encrypted_vectors, current_weights_for_this_param)
+            
+            if aggregated_enc_vector:
+                serialized_agg_data = self.crypto_engine.serialize_vector(aggregated_enc_vector)
+                aggregated_encrypted_deltas[name] = {"type": param_type, "shape": shape, "data": serialized_agg_data}
+            else:
+                self.logger.error(f"Secure aggregation of deltas failed for param '{name}' (type {param_type}).")
+                # This could mean the whole aggregation for this round is compromised for this param
+        
+        return aggregated_encrypted_deltas if aggregated_encrypted_deltas else None
+
+
+    def _aggregate_plain_deltas(self, client_deltas_list: List[Dict[str, np.ndarray]], weights: List[float]) -> Optional[Dict[str, np.ndarray]]:
+        """
+        Aggregates a list of client deltas, where each delta is a dictionary of
+        plain numpy arrays.
+        (This is very similar to your previous _aggregate_plain_updates, just acting on deltas)
+        """
+        self.logger.info("Performing plain FedAvg aggregation of DELTAS...")
+        if not client_deltas_list: return None
+
+        aggregated_deltas_np = {}
+        # Get param names from the first client's delta (assume consistency)
+        # Also, server's current model can define the expected structure
+        param_names = list(self.model.state_dict().keys()) # Use server model's param names as canonical list
+
+        for name in param_names:
+            # Initialize aggregated delta with zeros matching the global model shape
+            # This ensures if a client doesn't send a delta for a param, it contributes zero
+            # to that parameter's aggregated delta.
+            if name not in self.model.state_dict(): # Should not happen if using model keys
+                self.logger.warning(f"Parameter name '{name}' from first delta not in server model. Skipping.")
+                continue
+
+            template_param = self.model.state_dict()[name]
+            current_aggregated_delta_np = np.zeros_like(template_param.cpu().numpy(), dtype=np.float32)
+            param_contribution_count = 0
+
+            for i, client_delta_dict in enumerate(client_deltas_list):
+                if name in client_delta_dict:
+                    client_param_delta = client_delta_dict[name]
+                    if isinstance(client_param_delta, np.ndarray):
+                        if client_param_delta.shape == current_aggregated_delta_np.shape:
+                            current_aggregated_delta_np += client_param_delta * weights[i]
+                            param_contribution_count +=1
+                        else:
+                            self.logger.warning(f"Shape mismatch for plain delta '{name}' from client update {i}: Expected={current_aggregated_delta_np.shape}, Got={client_param_delta.shape}. Skipping contribution.")
+                    else:
+                        self.logger.warning(f"Plain delta for '{name}' from client update {i} is not numpy array (type: {type(client_param_delta)}). Skipping.")
+            
+            if param_contribution_count > 0:
+                aggregated_deltas_np[name] = current_aggregated_delta_np
+            else:
+                # If no client contributed a valid delta for this param, the aggregated_delta for it will be zeros.
+                # This is correct as it means no change to that global model parameter from this round's deltas.
+                aggregated_deltas_np[name] = current_aggregated_delta_np # Store the zeros
+                self.logger.debug(f"No valid client deltas received for param '{name}'. Aggregated delta is zero.")
+
+
+        return aggregated_deltas_np if aggregated_deltas_np else None
 
     async def _aggregate_encrypted_updates(self, updates: List[Dict[str, Any]], weights: List[float]) -> Optional[Dict[str, Any]]:
         """Helper to perform secure aggregation on encrypted parameters."""
@@ -613,6 +899,7 @@ class FederatedServer:
     # --- Evaluation ---
 
     async def _evaluate_model(self, dataloader: DataHandler) -> Dict[str, float]:
+        from sklearn.metrics import precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix
         """Evaluate the current global model on the provided dataloader (val or test)."""
         if not dataloader:
             self.logger.warning("Evaluation requested but dataloader is None.")
@@ -697,12 +984,45 @@ class FederatedServer:
         # --- Compute Final Metrics ---
         metrics = {}
         if total_samples > 0:
-             avg_loss = total_loss / total_samples
-             metrics["loss"] = avg_loss
-             if task_type != "regression":
-                 accuracy = total_correct / total_samples
-                 metrics["accuracy"] = accuracy
+            avg_loss = total_loss / total_samples
+            metrics["loss"] = avg_loss
 
+            if task_type != "regression":
+                accuracy = total_correct / total_samples
+                metrics["accuracy"] = accuracy
+
+                y_true_np = np.concatenate(all_targets)
+
+                if is_binary:
+                    # For binary, all_predictions might store probabilities or raw logits
+                    # If probabilities:
+                    y_pred_probs_np = np.concatenate(all_predictions)
+                    y_pred_binary_np = (y_pred_probs_np > 0.5).astype(int)
+                    
+                    metrics["precision"] = precision_score(y_true_np, y_pred_binary_np, zero_division=0)
+                    metrics["recall"] = recall_score(y_true_np, y_pred_binary_np, zero_division=0)
+                    metrics["f1_score"] = f1_score(y_true_np, y_pred_binary_np, zero_division=0)
+                    try:
+                        metrics["auc"] = roc_auc_score(y_true_np, y_pred_probs_np)
+                    except ValueError: # Handles cases where only one class is present in y_true_np
+                        metrics["auc"] = 0.5 # Or None or np.nan
+                    # tn, fp, fn, tp = confusion_matrix(y_true_np, y_pred_binary_np).ravel()
+                    # metrics["specificity"] = tn / (tn + fp) if (tn + fp) > 0 else 0.0
+
+
+                elif task_type == "classification": # Multi-class
+                    # For multi-class, all_predictions might store probability distributions
+                    y_pred_probs_np = np.concatenate(all_predictions) # Shape (n_samples, n_classes)
+                    y_pred_labels_np = np.argmax(y_pred_probs_np, axis=1)
+
+                    metrics["precision_macro"] = precision_score(y_true_np, y_pred_labels_np, average='macro', zero_division=0)
+                    metrics["recall_macro"] = recall_score(y_true_np, y_pred_labels_np, average='macro', zero_division=0)
+                    metrics["f1_score_macro"] = f1_score(y_true_np, y_pred_labels_np, average='macro', zero_division=0)
+                    try:
+                        # roc_auc_score for multi-class needs probabilities and 'ovr' or 'ovo' strategy
+                        metrics["auc_macro_ovr"] = roc_auc_score(y_true_np, y_pred_probs_np, average='macro', multi_class='ovr')
+                    except ValueError:
+                        metrics["auc_macro_ovr"] = 0.5 # Or None
              # TODO: Add more metrics if needed (AUC, F1, Precision, Recall using all_targets/all_predictions)
              # from sklearn.metrics import roc_auc_score, f1_score etc.
              # Requires careful handling of shapes and averaging for multi-class.
@@ -862,48 +1182,61 @@ class FederatedServer:
             self.logger.error(f"Error saving global checkpoint '{tag}': {e}", exc_info=True)
 
     def _record_history(self):
-         """Append metrics from the completed round to the history."""
-         client_metrics_summary = {}
-         total_client_samples = 0
-         avg_client_train_loss = 0
-         avg_client_train_acc = 0 # If applicable
-         num_clients_with_metrics = 0
+        """Append metrics from the completed round to the history."""
+        client_metrics_summary = {}
+        total_client_samples = 0
+        avg_client_train_loss = 0
+        avg_client_train_acc = 0 # If applicable
+        num_clients_with_metrics = 0
+        sum_quality_scores = 0
+        num_valid_quality_scores = 0   
 
-         for client_id, update in self.client_updates_this_round.items():
-             metrics = update.get("metrics", {})
-             samples = update.get("sample_size", 0)
-             client_metrics_summary[client_id] = {
-                 "train_loss": metrics.get("train_loss"),
-                 "train_accuracy": metrics.get("train_accuracy"),
-                 "val_loss": metrics.get("val_loss"),
-                 "val_accuracy": metrics.get("val_accuracy"),
-                 "samples": samples,
-                 "duration": update.get("train_duration_sec")
-             }
-             if metrics.get("train_loss") is not None and samples > 0:
-                  avg_client_train_loss += metrics["train_loss"] * samples
-                  if metrics.get("train_accuracy") is not None:
-                       avg_client_train_acc += metrics["train_accuracy"] * samples
-                  total_client_samples += samples
-                  num_clients_with_metrics += 1
+        for client_id, update in self.client_updates_this_round.items():
+            metrics = update.get("metrics", {})
+            samples = update.get("sample_size", 0)
+            quality_score = update.get("quality_score")
+            client_metrics_summary[client_id] = {
+                "train_loss": metrics.get("train_loss"),
+                "train_accuracy": metrics.get("train_accuracy"),
+                "val_loss": metrics.get("val_loss"),
+                "val_accuracy": metrics.get("val_accuracy"),
+                "quality_score": quality_score,
+                "samples": samples,
+                "duration": update.get("train_duration_sec")
+            }
+            if metrics.get("train_loss") is not None and samples > 0:
+                avg_client_train_loss += metrics["train_loss"] * samples
+                if metrics.get("train_accuracy") is not None:
+                    avg_client_train_acc += metrics["train_accuracy"] * samples
+                total_client_samples += samples
+                num_clients_with_metrics += 1
+           
+            if quality_score is not None and not (np.isnan(quality_score) or np.isinf(quality_score)):
+                sum_quality_scores += quality_score
+                num_valid_quality_scores +=1
 
+        avg_quality_score = (sum_quality_scores / num_valid_quality_scores) if num_valid_quality_scores > 0 else None
+                
+        if total_client_samples > 0:
+            avg_client_train_loss /= total_client_samples
+            if self.config.model.task_type != 'regression':
+                avg_client_train_acc /= total_client_samples
+        else: # Avoid division by zero if no samples
+             avg_client_train_loss = None
+             avg_client_train_acc = None
 
-         if total_client_samples > 0:
-             avg_client_train_loss /= total_client_samples
-             if self.config.model.task_type != 'regression':
-                  avg_client_train_acc /= total_client_samples
-
-         history_entry = {
-             "round": self.current_round,
-             "timestamp": datetime.now().isoformat(),
-             "num_selected_clients": len(self.selected_clients_this_round),
-             "num_updates_received": len(self.client_updates_this_round),
-             "global_metrics": copy.deepcopy(self.global_eval_metrics), # Metrics after aggregation
-             "avg_client_train_loss": avg_client_train_loss if total_client_samples > 0 else None,
-             "avg_client_train_accuracy": avg_client_train_acc if total_client_samples > 0 and self.config.model.task_type != 'regression' else None,
-             # "client_metrics_detailed": client_metrics_summary # Optional: Store per-client details
-         }
-         self.training_history.append(history_entry)
+        history_entry = {
+            "round": self.current_round,
+            "timestamp": datetime.now().isoformat(),
+            "num_selected_clients": len(self.selected_clients_this_round),
+            "num_updates_received": len(self.client_updates_this_round),
+            "global_metrics": copy.deepcopy(self.global_eval_metrics), # Metrics after aggregation
+            "avg_client_train_loss": avg_client_train_loss if total_client_samples > 0 else None,
+            "avg_client_train_accuracy": avg_client_train_acc if total_client_samples > 0 and self.config.model.task_type != 'regression' else None,
+            "avg_quality_score": avg_quality_score,
+            # "client_metrics_detailed": client_metrics_summary # Optional: Store per-client details
+        }
+        self.training_history.append(history_entry)
 
 
     def _log_round_summary(self, round_start_time: float):

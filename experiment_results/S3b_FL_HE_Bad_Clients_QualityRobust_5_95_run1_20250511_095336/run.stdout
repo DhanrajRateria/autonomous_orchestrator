@@ -1,0 +1,1483 @@
+Added parent's parent directory to sys.path: /home/dhanraj/autonomous_orchestrator
+2025-05-11 09:53:41 - root                      - INFO     - Logging to console and to file: experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/results/run_logs/fl_data_S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_run_20250511_095341.log
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Loaded configuration from: experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/config_for_run.yaml
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Project: fl_data_S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1, Task: binary_classification
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - HE Enabled: True, DP Enabled: False
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Loaded configuration from: experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/config_for_run.yaml
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Using base dataset: /home/dhanraj/autonomous_orchestrator/federated_learning_framework/examples/data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Preparing data for 10 clients from /home/dhanraj/autonomous_orchestrator/federated_learning_framework/examples/data.csv...
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Full dataset loaded: (569, 33)
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Applying non-IID data split for binary classification...
+2025-05-11 09:53:41 - cancer_detection_main     - WARNING  - Target column 'diagnosis' is not numeric. Attempting LabelEncoding.
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Applied LabelEncoder. Mapped classes: ['B' 'M'] to [0, 1]
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Class distribution: 212 positive (1), 357 negative (0)
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_1: 56 samples (5 pos, 51 neg). Saved to client_data/client_1_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_2: 56 samples (10 pos, 46 neg). Saved to client_data/client_2_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_3: 56 samples (15 pos, 41 neg). Saved to client_data/client_3_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_4: 56 samples (20 pos, 36 neg). Saved to client_data/client_4_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_5: 56 samples (25 pos, 31 neg). Saved to client_data/client_5_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_6: 56 samples (30 pos, 26 neg). Saved to client_data/client_6_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_7: 56 samples (35 pos, 21 neg). Saved to client_data/client_7_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_8: 56 samples (40 pos, 16 neg). Saved to client_data/client_8_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - WARNING  - client_9: Not enough unique positive samples (32/45). Sampling with replacement.
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_9: 56 samples (45 pos, 11 neg). Saved to client_data/client_9_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - WARNING  - client_10: Not enough unique positive samples (0/58). Sampling with replacement.
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Created dataset for client_10: 65 samples (58 pos, 7 neg). Saved to client_data/client_10_data.csv
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Initializing Federated Server...
+2025-05-11 09:53:41 - federated.server          - INFO     - Using device: cpu
+2025-05-11 09:53:41 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:41 - crypto_engine             - INFO     - TenSEAL context created in 0.11 seconds.
+2025-05-11 09:53:41 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:41 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:41 - federated.server          - INFO     - Federated server initialized for project 'fl_data_S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1'.
+2025-05-11 09:53:41 - federated.server          - INFO     - Starting federated learning server...
+2025-05-11 09:53:41 - federated.server          - INFO     - Initializing server evaluation data...
+2025-05-11 09:53:41 - data_handler              - INFO     - Calculated pos_weight: 1.6840 (neg_count=357, pos_count=212)
+2025-05-11 09:53:41 - data_handler              - INFO     - Global pos_weight set in config: 1.6840
+2025-05-11 09:53:41 - data_handler              - INFO     - Attempting to load data from: /home/dhanraj/autonomous_orchestrator/federated_learning_framework/examples/data.csv
+2025-05-11 09:53:41 - data_handler              - INFO     - Loaded DataFrame: 569 rows, 33 columns from /home/dhanraj/autonomous_orchestrator/federated_learning_framework/examples/data.csv
+2025-05-11 09:53:41 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:41 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:41 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:41 - data_handler              - INFO     - Final feature matrix shape: (569, 31)
+2025-05-11 09:53:41 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:41 - data_handler              - INFO     - Fitted LabelEncoder. Classes: ['B' 'M']
+2025-05-11 09:53:41 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([357, 212]))
+2025-05-11 09:53:41 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:41 - data_handler              - WARNING  - Input shape mismatch after preprocessing. Updating config input_shape from [32] to [31]
+2025-05-11 09:53:41 - data_handler              - INFO     - Creating TabularDataset with feature shape (569, 31) and target shape (569,), target dtype torch.float32
+2025-05-11 09:53:41 - data_handler              - INFO     - Splitting data: Total=569, Train=399, Val=85, Test=85
+2025-05-11 09:53:41 - data_handler              - INFO     - DataLoaders created. Train batches: 12, Val batches: 2, Test batches: 2
+2025-05-11 09:53:41 - federated.server          - INFO     - Server evaluation data loaded: Validation=85 samples, Test=85 samples
+2025-05-11 09:53:41 - federated.server          - INFO     - Creating global model...
+2025-05-11 09:53:41 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:41 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:41 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:41 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:41 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:41 - federated.server          - INFO     - Global model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:41 - federated.server          - INFO     - Saved global model checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/server/global_model_initial.pt
+2025-05-11 09:53:41 - crypto_engine             - INFO     - Public context saved to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/server/crypto_context.tenseal
+2025-05-11 09:53:41 - crypto_engine             - ERROR    - Failed to save secret key to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/server/crypto_context_sk.tenseal: 'SecretKey' object has no attribute 'serialize'
+Traceback (most recent call last):
+  File "/home/dhanraj/autonomous_orchestrator/federated_learning_framework/crypto_engine.py", line 485, in save_context_to_file
+    secret_key_bytes = self.secret_key.serialize()
+AttributeError: 'SecretKey' object has no attribute 'serialize'
+2025-05-11 09:53:41 - federated.server          - INFO     - Server startup complete. Waiting for clients...
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Server initialized successfully.
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Initializing 10 Federated Clients...
+2025-05-11 09:53:41 - cancer_detection_main     - INFO     - Assigning roles: 2 noisy clients, 1 adversarial clients.
+2025-05-11 09:53:41 - federated.client.client_1 - INFO     - Using device: cpu
+2025-05-11 09:53:41 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:41 - crypto_engine             - INFO     - TenSEAL context created in 0.08 seconds.
+2025-05-11 09:53:41 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:41 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:41 - federated.client.client_1 - INFO     - Federated client 'client_1' created. Data: client_data/client_1_data.csv
+2025-05-11 09:53:41 - federated.client.client_2 - WARNING  - Client client_2 configured as NOISY. Label flip prob: 0.15
+2025-05-11 09:53:41 - federated.client.client_2 - INFO     - Using device: cpu
+2025-05-11 09:53:41 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:41 - crypto_engine             - INFO     - TenSEAL context created in 0.08 seconds.
+2025-05-11 09:53:41 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:41 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:41 - federated.client.client_2 - INFO     - Federated client 'client_2' created. Data: client_data/client_2_data.csv
+2025-05-11 09:53:41 - federated.client.client_3 - INFO     - Using device: cpu
+2025-05-11 09:53:41 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - TenSEAL context created in 0.09 seconds.
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:42 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:42 - federated.client.client_3 - INFO     - Federated client 'client_3' created. Data: client_data/client_3_data.csv
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Using device: cpu
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - TenSEAL context created in 0.09 seconds.
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:42 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Federated client 'client_4' created. Data: client_data/client_4_data.csv
+2025-05-11 09:53:42 - federated.client.client_5 - INFO     - Using device: cpu
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - TenSEAL context created in 0.10 seconds.
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:42 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:42 - federated.client.client_5 - INFO     - Federated client 'client_5' created. Data: client_data/client_5_data.csv
+2025-05-11 09:53:42 - federated.client.client_6 - WARNING  - Client client_6 configured as ADVERSARIAL. Attack scale: -2.0
+2025-05-11 09:53:42 - federated.client.client_6 - INFO     - Using device: cpu
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - TenSEAL context created in 0.09 seconds.
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:42 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:42 - federated.client.client_6 - INFO     - Federated client 'client_6' created. Data: client_data/client_6_data.csv
+2025-05-11 09:53:42 - federated.client.client_7 - INFO     - Using device: cpu
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - TenSEAL context created in 0.09 seconds.
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:42 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:42 - federated.client.client_7 - INFO     - Federated client 'client_7' created. Data: client_data/client_7_data.csv
+2025-05-11 09:53:42 - federated.client.client_8 - INFO     - Using device: cpu
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - TenSEAL context created in 0.09 seconds.
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:42 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:42 - federated.client.client_8 - INFO     - Federated client 'client_8' created. Data: client_data/client_8_data.csv
+2025-05-11 09:53:42 - federated.client.client_9 - WARNING  - Client client_9 configured as NOISY. Label flip prob: 0.15
+2025-05-11 09:53:42 - federated.client.client_9 - INFO     - Using device: cpu
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - TenSEAL context created in 0.09 seconds.
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:42 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:42 - federated.client.client_9 - INFO     - Federated client 'client_9' created. Data: client_data/client_9_data.csv
+2025-05-11 09:53:42 - federated.client.client_10 - INFO     - Using device: cpu
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Initializing CKKS homomorphic encryption...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - TenSEAL context created in 0.09 seconds.
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully initialized CKKS encryption context.
+2025-05-11 09:53:42 - data_handler              - INFO     - Data handler initialized.
+2025-05-11 09:53:42 - federated.client.client_10 - INFO     - Federated client 'client_10' created. Data: client_data/client_10_data.csv
+2025-05-11 09:53:42 - federated.client.client_1 - INFO     - Initializing client...
+2025-05-11 09:53:42 - federated.client.client_1 - INFO     - Loading local dataset...
+2025-05-11 09:53:42 - data_handler              - INFO     - Attempting to load data from: client_data/client_1_data.csv
+2025-05-11 09:53:42 - data_handler              - INFO     - Loaded DataFrame: 56 rows, 33 columns from client_data/client_1_data.csv
+2025-05-11 09:53:42 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:42 - data_handler              - INFO     - Final feature matrix shape: (56, 31)
+2025-05-11 09:53:42 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:42 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([51,  5]))
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:42 - data_handler              - INFO     - Creating TabularDataset with feature shape (56, 31) and target shape (56,), target dtype torch.float32
+2025-05-11 09:53:42 - data_handler              - INFO     - Splitting data: Total=56, Train=48, Val=8, Test=0
+2025-05-11 09:53:42 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:42 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:42 - federated.client.client_1 - INFO     - Dataset loaded: 48 training samples, 8 validation samples.
+2025-05-11 09:53:42 - federated.client.client_1 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:42 - federated.client.client_1 - INFO     - Creating local model...
+2025-05-11 09:53:42 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:42 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:42 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:42 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:42 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:42 - federated.client.client_1 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:42 - federated.client.client_1 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:42 - federated.client.client_1 - INFO     - Client 'client_1' initialization successful.
+2025-05-11 09:53:42 - federated.client.client_2 - INFO     - Initializing client...
+2025-05-11 09:53:42 - federated.client.client_2 - INFO     - Loading local dataset...
+2025-05-11 09:53:42 - data_handler              - INFO     - Attempting to load data from: client_data/client_2_data.csv
+2025-05-11 09:53:42 - data_handler              - INFO     - Loaded DataFrame: 56 rows, 33 columns from client_data/client_2_data.csv
+2025-05-11 09:53:42 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:42 - data_handler              - INFO     - Final feature matrix shape: (56, 31)
+2025-05-11 09:53:42 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:42 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([46, 10]))
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:42 - data_handler              - INFO     - Creating TabularDataset with feature shape (56, 31) and target shape (56,), target dtype torch.float32
+2025-05-11 09:53:42 - data_handler              - INFO     - Splitting data: Total=56, Train=48, Val=8, Test=0
+2025-05-11 09:53:42 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:42 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:42 - federated.client.client_2 - INFO     - Dataset loaded: 48 training samples, 8 validation samples.
+2025-05-11 09:53:42 - federated.client.client_2 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:42 - federated.client.client_2 - INFO     - Creating local model...
+2025-05-11 09:53:42 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:42 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:42 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:42 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:42 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:42 - federated.client.client_2 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:42 - federated.client.client_2 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:42 - federated.client.client_2 - INFO     - Client 'client_2' initialization successful.
+2025-05-11 09:53:42 - federated.client.client_3 - INFO     - Initializing client...
+2025-05-11 09:53:42 - federated.client.client_3 - INFO     - Loading local dataset...
+2025-05-11 09:53:42 - data_handler              - INFO     - Attempting to load data from: client_data/client_3_data.csv
+2025-05-11 09:53:42 - data_handler              - INFO     - Loaded DataFrame: 56 rows, 33 columns from client_data/client_3_data.csv
+2025-05-11 09:53:42 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:42 - data_handler              - INFO     - Final feature matrix shape: (56, 31)
+2025-05-11 09:53:42 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:42 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([41, 15]))
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:42 - data_handler              - INFO     - Creating TabularDataset with feature shape (56, 31) and target shape (56,), target dtype torch.float32
+2025-05-11 09:53:42 - data_handler              - INFO     - Splitting data: Total=56, Train=48, Val=8, Test=0
+2025-05-11 09:53:42 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:42 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:42 - federated.client.client_3 - INFO     - Dataset loaded: 48 training samples, 8 validation samples.
+2025-05-11 09:53:42 - federated.client.client_3 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:42 - federated.client.client_3 - INFO     - Creating local model...
+2025-05-11 09:53:42 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:42 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:42 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:42 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:42 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:42 - federated.client.client_3 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:42 - federated.client.client_3 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:42 - federated.client.client_3 - INFO     - Client 'client_3' initialization successful.
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Initializing client...
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Loading local dataset...
+2025-05-11 09:53:42 - data_handler              - INFO     - Attempting to load data from: client_data/client_4_data.csv
+2025-05-11 09:53:42 - data_handler              - INFO     - Loaded DataFrame: 56 rows, 33 columns from client_data/client_4_data.csv
+2025-05-11 09:53:42 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:42 - data_handler              - INFO     - Final feature matrix shape: (56, 31)
+2025-05-11 09:53:42 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:42 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([36, 20]))
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:42 - data_handler              - INFO     - Creating TabularDataset with feature shape (56, 31) and target shape (56,), target dtype torch.float32
+2025-05-11 09:53:42 - data_handler              - INFO     - Splitting data: Total=56, Train=48, Val=8, Test=0
+2025-05-11 09:53:42 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:42 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Dataset loaded: 48 training samples, 8 validation samples.
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Creating local model...
+2025-05-11 09:53:42 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:42 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:42 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:42 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:42 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:42 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:42 - federated.client.client_4 - INFO     - Client 'client_4' initialization successful.
+2025-05-11 09:53:42 - federated.client.client_5 - INFO     - Initializing client...
+2025-05-11 09:53:42 - federated.client.client_5 - INFO     - Loading local dataset...
+2025-05-11 09:53:42 - data_handler              - INFO     - Attempting to load data from: client_data/client_5_data.csv
+2025-05-11 09:53:42 - data_handler              - INFO     - Loaded DataFrame: 56 rows, 33 columns from client_data/client_5_data.csv
+2025-05-11 09:53:42 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:42 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:42 - data_handler              - INFO     - Final feature matrix shape: (56, 31)
+2025-05-11 09:53:42 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:42 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([31, 25]))
+2025-05-11 09:53:42 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:42 - data_handler              - INFO     - Creating TabularDataset with feature shape (56, 31) and target shape (56,), target dtype torch.float32
+2025-05-11 09:53:42 - data_handler              - INFO     - Splitting data: Total=56, Train=48, Val=8, Test=0
+2025-05-11 09:53:42 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:42 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:42 - federated.client.client_5 - INFO     - Dataset loaded: 48 training samples, 8 validation samples.
+2025-05-11 09:53:42 - federated.client.client_5 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:42 - federated.client.client_5 - INFO     - Creating local model...
+2025-05-11 09:53:42 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:42 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:42 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:42 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:42 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:42 - federated.client.client_5 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:42 - federated.client.client_5 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:43 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:43 - federated.client.client_5 - INFO     - Client 'client_5' initialization successful.
+2025-05-11 09:53:43 - federated.client.client_6 - INFO     - Initializing client...
+2025-05-11 09:53:43 - federated.client.client_6 - INFO     - Loading local dataset...
+2025-05-11 09:53:43 - data_handler              - INFO     - Attempting to load data from: client_data/client_6_data.csv
+2025-05-11 09:53:43 - data_handler              - INFO     - Loaded DataFrame: 56 rows, 33 columns from client_data/client_6_data.csv
+2025-05-11 09:53:43 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:43 - data_handler              - INFO     - Final feature matrix shape: (56, 31)
+2025-05-11 09:53:43 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:43 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([26, 30]))
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:43 - data_handler              - INFO     - Creating TabularDataset with feature shape (56, 31) and target shape (56,), target dtype torch.float32
+2025-05-11 09:53:43 - data_handler              - INFO     - Splitting data: Total=56, Train=48, Val=8, Test=0
+2025-05-11 09:53:43 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:43 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:43 - federated.client.client_6 - INFO     - Dataset loaded: 48 training samples, 8 validation samples.
+2025-05-11 09:53:43 - federated.client.client_6 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:43 - federated.client.client_6 - INFO     - Creating local model...
+2025-05-11 09:53:43 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:43 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:43 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:43 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:43 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:43 - federated.client.client_6 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:43 - federated.client.client_6 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:43 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:43 - federated.client.client_6 - INFO     - Client 'client_6' initialization successful.
+2025-05-11 09:53:43 - federated.client.client_7 - INFO     - Initializing client...
+2025-05-11 09:53:43 - federated.client.client_7 - INFO     - Loading local dataset...
+2025-05-11 09:53:43 - data_handler              - INFO     - Attempting to load data from: client_data/client_7_data.csv
+2025-05-11 09:53:43 - data_handler              - INFO     - Loaded DataFrame: 56 rows, 33 columns from client_data/client_7_data.csv
+2025-05-11 09:53:43 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:43 - data_handler              - INFO     - Final feature matrix shape: (56, 31)
+2025-05-11 09:53:43 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:43 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([21, 35]))
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:43 - data_handler              - INFO     - Creating TabularDataset with feature shape (56, 31) and target shape (56,), target dtype torch.float32
+2025-05-11 09:53:43 - data_handler              - INFO     - Splitting data: Total=56, Train=48, Val=8, Test=0
+2025-05-11 09:53:43 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:43 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:43 - federated.client.client_7 - INFO     - Dataset loaded: 48 training samples, 8 validation samples.
+2025-05-11 09:53:43 - federated.client.client_7 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:43 - federated.client.client_7 - INFO     - Creating local model...
+2025-05-11 09:53:43 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:43 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:43 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:43 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:43 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:43 - federated.client.client_7 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:43 - federated.client.client_7 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:43 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:43 - federated.client.client_7 - INFO     - Client 'client_7' initialization successful.
+2025-05-11 09:53:43 - federated.client.client_8 - INFO     - Initializing client...
+2025-05-11 09:53:43 - federated.client.client_8 - INFO     - Loading local dataset...
+2025-05-11 09:53:43 - data_handler              - INFO     - Attempting to load data from: client_data/client_8_data.csv
+2025-05-11 09:53:43 - data_handler              - INFO     - Loaded DataFrame: 56 rows, 33 columns from client_data/client_8_data.csv
+2025-05-11 09:53:43 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:43 - data_handler              - INFO     - Final feature matrix shape: (56, 31)
+2025-05-11 09:53:43 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:43 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([16, 40]))
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:43 - data_handler              - INFO     - Creating TabularDataset with feature shape (56, 31) and target shape (56,), target dtype torch.float32
+2025-05-11 09:53:43 - data_handler              - INFO     - Splitting data: Total=56, Train=48, Val=8, Test=0
+2025-05-11 09:53:43 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:43 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:43 - federated.client.client_8 - INFO     - Dataset loaded: 48 training samples, 8 validation samples.
+2025-05-11 09:53:43 - federated.client.client_8 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:43 - federated.client.client_8 - INFO     - Creating local model...
+2025-05-11 09:53:43 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:43 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:43 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:43 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:43 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:43 - federated.client.client_8 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:43 - federated.client.client_8 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:43 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:43 - federated.client.client_8 - INFO     - Client 'client_8' initialization successful.
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Initializing client...
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Loading local dataset...
+2025-05-11 09:53:43 - data_handler              - INFO     - Attempting to load data from: client_data/client_9_data.csv
+2025-05-11 09:53:43 - data_handler              - INFO     - Loaded DataFrame: 56 rows, 33 columns from client_data/client_9_data.csv
+2025-05-11 09:53:43 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:43 - data_handler              - INFO     - Final feature matrix shape: (56, 31)
+2025-05-11 09:53:43 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:43 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([11, 45]))
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:43 - data_handler              - INFO     - Creating TabularDataset with feature shape (56, 31) and target shape (56,), target dtype torch.float32
+2025-05-11 09:53:43 - data_handler              - INFO     - Splitting data: Total=56, Train=48, Val=8, Test=0
+2025-05-11 09:53:43 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:43 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Dataset loaded: 48 training samples, 8 validation samples.
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Creating local model...
+2025-05-11 09:53:43 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:43 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:43 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:43 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:43 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:43 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Client 'client_9' initialization successful.
+2025-05-11 09:53:43 - federated.client.client_10 - INFO     - Initializing client...
+2025-05-11 09:53:43 - federated.client.client_10 - INFO     - Loading local dataset...
+2025-05-11 09:53:43 - data_handler              - INFO     - Attempting to load data from: client_data/client_10_data.csv
+2025-05-11 09:53:43 - data_handler              - INFO     - Loaded DataFrame: 65 rows, 33 columns from client_data/client_10_data.csv
+2025-05-11 09:53:43 - data_handler              - WARNING  - Dropping identified problematic columns: ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - WARNING  - Specified feature columns not used (missing or dropped): ['Unnamed: 32']
+2025-05-11 09:53:43 - data_handler              - INFO     - Using 31 feature columns: ['id', 'radius_mean', 'texture_mean', 'perimeter_mean', 'area_mean', 'smoothness_mean', 'compactness_mean', 'concavity_mean', 'concave points_mean', 'symmetry_mean']...
+2025-05-11 09:53:43 - data_handler              - INFO     - Final feature matrix shape: (65, 31)
+2025-05-11 09:53:43 - data_handler              - INFO     - Processing target 'diagnosis' for classification.
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitted LabelEncoder. Classes: [0 1]
+2025-05-11 09:53:43 - data_handler              - INFO     - Target distribution: (array([0, 1]), array([ 7, 58]))
+2025-05-11 09:53:43 - data_handler              - INFO     - Fitting StandardScaler on features.
+2025-05-11 09:53:43 - data_handler              - INFO     - Creating TabularDataset with feature shape (65, 31) and target shape (65,), target dtype torch.float32
+2025-05-11 09:53:43 - data_handler              - INFO     - Splitting data: Total=65, Train=56, Val=9, Test=0
+2025-05-11 09:53:43 - data_handler              - INFO     - No test set created (test_split=0 or dataset too small).
+2025-05-11 09:53:43 - data_handler              - INFO     - DataLoaders created. Train batches: 1, Val batches: 1, Test batches: 0
+2025-05-11 09:53:43 - federated.client.client_10 - INFO     - Dataset loaded: 56 training samples, 9 validation samples.
+2025-05-11 09:53:43 - federated.client.client_10 - INFO     - Data loading complete. Final Input Shape: [31], Final Output Shape: [1]
+2025-05-11 09:53:43 - federated.client.client_10 - INFO     - Creating local model...
+2025-05-11 09:53:43 - models.factory            - INFO     - Attempting to create model 'binary_classifier' for task 'binary_classification'
+2025-05-11 09:53:43 - models.factory            - INFO     - Derived Dims: Input=31 (from shape [31]), Output=1 (from shape [1])
+2025-05-11 09:53:43 - models.factory            - INFO     - Config Settings: Hidden=[64, 32], Activation=relu, Dropout=0.3
+2025-05-11 09:53:43 - models.MLP                - INFO     - Creating MLP: input=31, hidden=[64, 32], output=1, activation=relu, dropout=0.3, task=binary_classification
+2025-05-11 09:53:43 - models.MLP                - INFO     - Added BatchNorm1d layers to MLP.
+2025-05-11 09:53:43 - federated.client.client_10 - INFO     - Model 'binary_classifier' created and moved to cpu.
+2025-05-11 09:53:43 - federated.client.client_10 - INFO     - Loading public crypto context from server...
+2025-05-11 09:53:43 - crypto_engine             - INFO     - Successfully loaded public TenSEAL context.
+2025-05-11 09:53:43 - federated.client.client_10 - INFO     - Client 'client_10' initialization successful.
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_1 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_1 - Info: {'client_id': 'client_1', 'train_size': 48, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.307594'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_2 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_2 - Info: {'client_id': 'client_2', 'train_size': 48, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.328577'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_3 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_3 - Info: {'client_id': 'client_3', 'train_size': 48, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.349798'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_4 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_4 - Info: {'client_id': 'client_4', 'train_size': 48, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.371090'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_5 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_5 - Info: {'client_id': 'client_5', 'train_size': 48, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.392781'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_6 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_6 - Info: {'client_id': 'client_6', 'train_size': 48, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.414044'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_7 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_7 - Info: {'client_id': 'client_7', 'train_size': 48, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.434983'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_8 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_8 - Info: {'client_id': 'client_8', 'train_size': 48, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.455908'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_9 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_9 - Info: {'client_id': 'client_9', 'train_size': 48, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.476918'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Client client_10 initialized successfully.
+2025-05-11 09:53:43 - federated.server          - INFO     - Registering new client: client_10 - Info: {'client_id': 'client_10', 'train_size': 56, 'device': 'cpu', 'supports_encryption': True, 'status': 'idle', 'input_shape': [31], 'output_shape': [1], 'task_type': 'binary_classification', 'timestamp': '2025-05-11T09:53:43.498055'}
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Initialized 10/10 clients.
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Starting federated learning process for 20 rounds...
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - ----- Orchestrating Round 1 -----
+2025-05-11 09:53:43 - federated.server          - INFO     - ===== Starting Round 1/20 =====
+2025-05-11 09:53:43 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:43 - federated.server          - INFO     - Selected 2 clients for round 1: ['client_9', 'client_2']
+2025-05-11 09:53:43 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:43 - cancer_detection_main     - INFO     - Round 1: Server selected clients: ['client_9', 'client_2']
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Starting local training for round 1...
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:43 - federated.client.client_9 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:44 - federated.client.client_9 - INFO     - Epoch 1/3 finished in 1.28s. Avg Train Loss: 0.7185, Train Accuracy: 0.4688
+2025-05-11 09:53:44 - federated.client.client_9 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.6460, Train Accuracy: 0.6875
+2025-05-11 09:53:44 - federated.client.client_9 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.5782, Train Accuracy: 0.7188
+2025-05-11 09:53:44 - federated.client.client_9 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:44 - federated.client.client_9 - INFO     - Validation Metrics: Loss=0.6014, Acc=0.8750
+2025-05-11 09:53:44 - federated.client.client_9 - INFO     - Encrypting model delta...
+2025-05-11 09:53:44 - federated.client.client_9 - INFO     - Local training round 1 completed in 1.32s.
+2025-05-11 09:53:44 - federated.client.client_9 - INFO     - Metrics: Train Loss=0.6476, Train Acc=0.6250, Val Loss=0.6014, Val Acc=0.8750
+2025-05-11 09:53:44 - federated.client.client_9 - INFO     - Final calculated quality score for round 1: 1.544266e+00 (from avg_train_loss: 0.6475557883580526)
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Starting local training for round 1...
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.6890, Train Accuracy: 0.5625
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.6421, Train Accuracy: 0.7500
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.5427, Train Accuracy: 0.9062
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Validation Metrics: Loss=0.6086, Acc=0.6250
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Encrypting model delta...
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Local training round 1 completed in 0.05s.
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Metrics: Train Loss=0.6246, Train Acc=0.7396, Val Loss=0.6086, Val Acc=0.6250
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Final calculated quality score for round 1: 1.601052e+00 (from avg_train_loss: 0.6245882709821066)
+2025-05-11 09:53:44 - federated.server          - INFO     - Stored update from client client_9 for round 1. (1/2 received)
+2025-05-11 09:53:44 - federated.server          - INFO     - Stored update from client client_2 for round 1. (2/2 received)
+2025-05-11 09:53:44 - cancer_detection_main     - INFO     - Round 1: Submitted 2 successful updates to server.
+2025-05-11 09:53:44 - federated.server          - INFO     - Finalizing Round 1...
+2025-05-11 09:53:44 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:44 - federated.server          - INFO     - Raw quality scores received: [1.544266106043925, 1.601052157728544]
+2025-05-11 09:53:44 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:44 - federated.server          - INFO     - Processed (valid positive) scores: [1.54426611 1.60105216]
+2025-05-11 09:53:44 - federated.server          - INFO     - Quality scores: Min=1.5443e+00, Max=1.6011e+00, Mean=1.5727e+00. Clipping to percentile range [5.0th=1.5471e+00, 95.0th=1.5982e+00]
+2025-05-11 09:53:44 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.492', '0.508']
+2025-05-11 09:53:44 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:44 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:44 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:44 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:44 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:44 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:44 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:44 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:44 - federated.server          - INFO     - Round 1 Validation Metrics: {'loss': 0.6185250815223245, 'accuracy': 0.8, 'precision': 0.6222222222222222, 'recall': 1.0, 'f1_score': 0.7671232876712328, 'auc': 0.9849624060150376}
+2025-05-11 09:53:44 - federated.server          - INFO     - New best model found! Round 1, accuracy: 0.8000
+2025-05-11 09:53:44 - federated.server          - INFO     - Saved global model checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/server/global_model_best.pt
+2025-05-11 09:53:44 - federated.server          - INFO     - Round 1 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.6185, Acc=0.8000 | Avg Client Train Loss=0.6361, Acc=0.6823
+2025-05-11 09:53:44 - federated.server          - INFO     - ===== Finished Round 1 =====
+2025-05-11 09:53:44 - cancer_detection_main     - INFO     - ----- Orchestrating Round 2 -----
+2025-05-11 09:53:44 - federated.server          - INFO     - ===== Starting Round 2/20 =====
+2025-05-11 09:53:44 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:44 - federated.server          - INFO     - Selected 2 clients for round 2: ['client_1', 'client_2']
+2025-05-11 09:53:44 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:44 - cancer_detection_main     - INFO     - Round 2: Server selected clients: ['client_1', 'client_2']
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Starting local training for round 2...
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.6712, Train Accuracy: 0.5000
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.5743, Train Accuracy: 0.7188
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.4762, Train Accuracy: 0.9062
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Validation Metrics: Loss=0.7443, Acc=0.5000
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Encrypting model delta...
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Local training round 2 completed in 0.05s.
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Metrics: Train Loss=0.5739, Train Acc=0.7083, Val Loss=0.7443, Val Acc=0.5000
+2025-05-11 09:53:44 - federated.client.client_1 - INFO     - Final calculated quality score for round 2: 1.742543e+00 (from avg_train_loss: 0.5738729039827982)
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Starting local training for round 2...
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.5831, Train Accuracy: 0.8750
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.6185, Train Accuracy: 0.8125
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.5799, Train Accuracy: 1.0000
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Validation Metrics: Loss=0.5674, Acc=0.7500
+2025-05-11 09:53:44 - federated.client.client_2 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Local training round 2 completed in 0.05s.
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Metrics: Train Loss=0.5938, Train Acc=0.8958, Val Loss=0.5674, Val Acc=0.7500
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Final calculated quality score for round 2: 1.683973e+00 (from avg_train_loss: 0.5938329100608826)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_1 for round 2. (1/2 received)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_2 for round 2. (2/2 received)
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 2: Submitted 2 successful updates to server.
+2025-05-11 09:53:45 - federated.server          - INFO     - Finalizing Round 2...
+2025-05-11 09:53:45 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:45 - federated.server          - INFO     - Raw quality scores received: [1.7425430796901593, 1.6839725435980497]
+2025-05-11 09:53:45 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:45 - federated.server          - INFO     - Processed (valid positive) scores: [1.74254308 1.68397254]
+2025-05-11 09:53:45 - federated.server          - INFO     - Quality scores: Min=1.6840e+00, Max=1.7425e+00, Mean=1.7133e+00. Clipping to percentile range [5.0th=1.6869e+00, 95.0th=1.7396e+00]
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.508', '0.492']
+2025-05-11 09:53:45 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:45 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:45 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:45 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:45 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 2 Validation Metrics: {'loss': 0.5464624103377848, 'accuracy': 0.9529411764705882, 'precision': 0.9, 'recall': 0.9642857142857143, 'f1_score': 0.9310344827586207, 'auc': 0.9931077694235589}
+2025-05-11 09:53:45 - federated.server          - INFO     - New best model found! Round 2, accuracy: 0.9529
+2025-05-11 09:53:45 - federated.server          - INFO     - Saved global model checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/server/global_model_best.pt
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 2 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.5465, Acc=0.9529 | Avg Client Train Loss=0.5839, Acc=0.8021
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Finished Round 2 =====
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - ----- Orchestrating Round 3 -----
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Starting Round 3/20 =====
+2025-05-11 09:53:45 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:45 - federated.server          - INFO     - Selected 2 clients for round 3: ['client_10', 'client_3']
+2025-05-11 09:53:45 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 3: Server selected clients: ['client_10', 'client_3']
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Starting local training for round 3...
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.9104, Train Accuracy: 0.3125
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.8187, Train Accuracy: 0.4062
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.6477, Train Accuracy: 0.6250
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Validation Metrics: Loss=0.5372, Acc=0.8889
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Local training round 3 completed in 0.04s.
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Metrics: Train Loss=0.7923, Train Acc=0.4479, Val Loss=0.5372, Val Acc=0.8889
+2025-05-11 09:53:45 - federated.client.client_10 - INFO     - Final calculated quality score for round 3: 1.262202e+00 (from avg_train_loss: 0.7922651569048563)
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Starting local training for round 3...
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.4057, Train Accuracy: 0.9375
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.3215, Train Accuracy: 0.9062
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.2727, Train Accuracy: 0.9688
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Validation Metrics: Loss=0.4447, Acc=0.8750
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Local training round 3 completed in 0.05s.
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Metrics: Train Loss=0.3333, Train Acc=0.9375, Val Loss=0.4447, Val Acc=0.8750
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Final calculated quality score for round 3: 3.000463e+00 (from avg_train_loss: 0.3332809507846832)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_10 for round 3. (1/2 received)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_3 for round 3. (2/2 received)
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 3: Submitted 2 successful updates to server.
+2025-05-11 09:53:45 - federated.server          - INFO     - Finalizing Round 3...
+2025-05-11 09:53:45 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:45 - federated.server          - INFO     - Raw quality scores received: [1.2622020911592347, 3.0004625142333317]
+2025-05-11 09:53:45 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:45 - federated.server          - INFO     - Processed (valid positive) scores: [1.26220209 3.00046251]
+2025-05-11 09:53:45 - federated.server          - INFO     - Quality scores: Min=1.2622e+00, Max=3.0005e+00, Mean=2.1313e+00. Clipping to percentile range [5.0th=1.3491e+00, 95.0th=2.9135e+00]
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.316', '0.684']
+2025-05-11 09:53:45 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:45 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:45 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:45 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:45 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 3 Validation Metrics: {'loss': 0.46877785009496353, 'accuracy': 0.9411764705882353, 'precision': 0.8709677419354839, 'recall': 0.9642857142857143, 'f1_score': 0.9152542372881356, 'auc': 0.993734335839599}
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 3 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.4688, Acc=0.9412 | Avg Client Train Loss=0.5804, Acc=0.6739
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Finished Round 3 =====
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - ----- Orchestrating Round 4 -----
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Starting Round 4/20 =====
+2025-05-11 09:53:45 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:45 - federated.server          - INFO     - Selected 2 clients for round 4: ['client_2', 'client_8']
+2025-05-11 09:53:45 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 4: Server selected clients: ['client_2', 'client_8']
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Starting local training for round 4...
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.4850, Train Accuracy: 0.9375
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.6185, Train Accuracy: 0.8438
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.5162, Train Accuracy: 0.9375
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Validation Metrics: Loss=0.4886, Acc=0.7500
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Local training round 4 completed in 0.05s.
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Metrics: Train Loss=0.5399, Train Acc=0.9062, Val Loss=0.4886, Val Acc=0.7500
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Final calculated quality score for round 4: 1.852114e+00 (from avg_train_loss: 0.5399226744969686)
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Starting local training for round 4...
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.6077, Train Accuracy: 0.5938
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.5120, Train Accuracy: 0.7188
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.4227, Train Accuracy: 0.8750
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Validation Metrics: Loss=0.3912, Acc=1.0000
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Local training round 4 completed in 0.05s.
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Metrics: Train Loss=0.5141, Train Acc=0.7292, Val Loss=0.3912, Val Acc=1.0000
+2025-05-11 09:53:45 - federated.client.client_8 - INFO     - Final calculated quality score for round 4: 1.945147e+00 (from avg_train_loss: 0.5140989720821381)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_2 for round 4. (1/2 received)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_8 for round 4. (2/2 received)
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 4: Submitted 2 successful updates to server.
+2025-05-11 09:53:45 - federated.server          - INFO     - Finalizing Round 4...
+2025-05-11 09:53:45 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:45 - federated.server          - INFO     - Raw quality scores received: [1.8521136361202744, 1.9451469642177481]
+2025-05-11 09:53:45 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:45 - federated.server          - INFO     - Processed (valid positive) scores: [1.85211364 1.94514696]
+2025-05-11 09:53:45 - federated.server          - INFO     - Quality scores: Min=1.8521e+00, Max=1.9451e+00, Mean=1.8986e+00. Clipping to percentile range [5.0th=1.8568e+00, 95.0th=1.9405e+00]
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.489', '0.511']
+2025-05-11 09:53:45 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:45 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:45 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:45 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:45 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 4 Validation Metrics: {'loss': 0.41395946811227236, 'accuracy': 0.9529411764705882, 'precision': 0.875, 'recall': 1.0, 'f1_score': 0.9333333333333333, 'auc': 0.9981203007518797}
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 4 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.4140, Acc=0.9529 | Avg Client Train Loss=0.5270, Acc=0.8177
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Finished Round 4 =====
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - ----- Orchestrating Round 5 -----
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Starting Round 5/20 =====
+2025-05-11 09:53:45 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:45 - federated.server          - INFO     - Selected 2 clients for round 5: ['client_2', 'client_6']
+2025-05-11 09:53:45 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 5: Server selected clients: ['client_2', 'client_6']
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Starting local training for round 5...
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.4438, Train Accuracy: 0.9375
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.4417, Train Accuracy: 0.9688
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.7038, Train Accuracy: 1.0000
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Validation Metrics: Loss=0.4612, Acc=0.7500
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Local training round 5 completed in 0.05s.
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Metrics: Train Loss=0.5298, Train Acc=0.9688, Val Loss=0.4612, Val Acc=0.7500
+2025-05-11 09:53:45 - federated.client.client_2 - INFO     - Final calculated quality score for round 5: 1.887632e+00 (from avg_train_loss: 0.5297632614771525)
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Starting local training for round 5...
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.4064, Train Accuracy: 0.8750
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.2838, Train Accuracy: 0.9688
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.2514, Train Accuracy: 1.0000
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Validation Metrics: Loss=0.3511, Acc=1.0000
+2025-05-11 09:53:45 - federated.client.client_6 - WARNING  - Client client_6 is ADVERSARIAL: scaling delta by -2.0.
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Local training round 5 completed in 0.05s.
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Metrics: Train Loss=0.3139, Train Acc=0.9479, Val Loss=0.3511, Val Acc=1.0000
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Final calculated quality score for round 5: 3.185845e+00 (from avg_train_loss: 0.31388744711875916)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_2 for round 5. (1/2 received)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_6 for round 5. (2/2 received)
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 5: Submitted 2 successful updates to server.
+2025-05-11 09:53:45 - federated.server          - INFO     - Finalizing Round 5...
+2025-05-11 09:53:45 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:45 - federated.server          - INFO     - Raw quality scores received: [1.8876320520596832, 3.185845191752635]
+2025-05-11 09:53:45 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:45 - federated.server          - INFO     - Processed (valid positive) scores: [1.88763205 3.18584519]
+2025-05-11 09:53:45 - federated.server          - INFO     - Quality scores: Min=1.8876e+00, Max=3.1858e+00, Mean=2.5367e+00. Clipping to percentile range [5.0th=1.9525e+00, 95.0th=3.1209e+00]
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.385', '0.615']
+2025-05-11 09:53:45 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:45 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:45 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:45 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:45 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 5 Validation Metrics: {'loss': 0.5618881863706252, 'accuracy': 0.8941176470588236, 'precision': 0.7714285714285715, 'recall': 0.9642857142857143, 'f1_score': 0.8571428571428571, 'auc': 0.9880952380952381}
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 5 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.5619, Acc=0.8941 | Avg Client Train Loss=0.4218, Acc=0.9583
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Finished Round 5 =====
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - ----- Orchestrating Round 6 -----
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Starting Round 6/20 =====
+2025-05-11 09:53:45 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:45 - federated.server          - INFO     - Selected 2 clients for round 6: ['client_9', 'client_3']
+2025-05-11 09:53:45 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 6: Server selected clients: ['client_9', 'client_3']
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Starting local training for round 6...
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.9008, Train Accuracy: 0.2812
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.8304, Train Accuracy: 0.4062
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.7434, Train Accuracy: 0.5000
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Validation Metrics: Loss=0.5699, Acc=0.6250
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Local training round 6 completed in 0.05s.
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Metrics: Train Loss=0.8249, Train Acc=0.3958, Val Loss=0.5699, Val Acc=0.6250
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Final calculated quality score for round 6: 1.212289e+00 (from avg_train_loss: 0.82488485177358)
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Starting local training for round 6...
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.4046, Train Accuracy: 0.9688
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.3077, Train Accuracy: 1.0000
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.3344, Train Accuracy: 0.9688
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Validation Metrics: Loss=0.4521, Acc=0.8750
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Local training round 6 completed in 0.04s.
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Metrics: Train Loss=0.3489, Train Acc=0.9792, Val Loss=0.4521, Val Acc=0.8750
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Final calculated quality score for round 6: 2.866123e+00 (from avg_train_loss: 0.3489023546377818)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_9 for round 6. (1/2 received)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_3 for round 6. (2/2 received)
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 6: Submitted 2 successful updates to server.
+2025-05-11 09:53:45 - federated.server          - INFO     - Finalizing Round 6...
+2025-05-11 09:53:45 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:45 - federated.server          - INFO     - Raw quality scores received: [1.2122889462219635, 2.8661232020487795]
+2025-05-11 09:53:45 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:45 - federated.server          - INFO     - Processed (valid positive) scores: [1.21228895 2.8661232 ]
+2025-05-11 09:53:45 - federated.server          - INFO     - Quality scores: Min=1.2123e+00, Max=2.8661e+00, Mean=2.0392e+00. Clipping to percentile range [5.0th=1.2950e+00, 95.0th=2.7834e+00]
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.318', '0.682']
+2025-05-11 09:53:45 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:45 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:45 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:45 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:45 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 6 Validation Metrics: {'loss': 0.4613826383562649, 'accuracy': 0.9176470588235294, 'precision': 0.8, 'recall': 1.0, 'f1_score': 0.8888888888888888, 'auc': 0.9918546365914787}
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 6 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.4614, Acc=0.9176 | Avg Client Train Loss=0.5869, Acc=0.6875
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Finished Round 6 =====
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - ----- Orchestrating Round 7 -----
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Starting Round 7/20 =====
+2025-05-11 09:53:45 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:45 - federated.server          - INFO     - Selected 2 clients for round 7: ['client_1', 'client_6']
+2025-05-11 09:53:45 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 7: Server selected clients: ['client_1', 'client_6']
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Starting local training for round 7...
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.4276, Train Accuracy: 0.8125
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.3225, Train Accuracy: 0.9375
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.2878, Train Accuracy: 0.9688
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Validation Metrics: Loss=0.6902, Acc=0.6250
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Local training round 7 completed in 0.04s.
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Metrics: Train Loss=0.3460, Train Acc=0.9062, Val Loss=0.6902, Val Acc=0.6250
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Final calculated quality score for round 7: 2.890391e+00 (from avg_train_loss: 0.3459729154904683)
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Starting local training for round 7...
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.5803, Train Accuracy: 0.6875
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.4924, Train Accuracy: 0.7188
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.3720, Train Accuracy: 0.8438
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Validation Metrics: Loss=0.3612, Acc=0.8750
+2025-05-11 09:53:45 - federated.client.client_6 - WARNING  - Client client_6 is ADVERSARIAL: scaling delta by -2.0.
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Local training round 7 completed in 0.04s.
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Metrics: Train Loss=0.4815, Train Acc=0.7500, Val Loss=0.3612, Val Acc=0.8750
+2025-05-11 09:53:45 - federated.client.client_6 - INFO     - Final calculated quality score for round 7: 2.076655e+00 (from avg_train_loss: 0.48154253760973614)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_1 for round 7. (1/2 received)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_6 for round 7. (2/2 received)
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 7: Submitted 2 successful updates to server.
+2025-05-11 09:53:45 - federated.server          - INFO     - Finalizing Round 7...
+2025-05-11 09:53:45 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:45 - federated.server          - INFO     - Raw quality scores received: [2.8903913134097254, 2.076655425517191]
+2025-05-11 09:53:45 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:45 - federated.server          - INFO     - Processed (valid positive) scores: [2.89039131 2.07665543]
+2025-05-11 09:53:45 - federated.server          - INFO     - Quality scores: Min=2.0767e+00, Max=2.8904e+00, Mean=2.4835e+00. Clipping to percentile range [5.0th=2.1173e+00, 95.0th=2.8497e+00]
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.574', '0.426']
+2025-05-11 09:53:45 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:45 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:45 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:45 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:45 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 7 Validation Metrics: {'loss': 0.5901301923920127, 'accuracy': 0.8588235294117647, 'precision': 0.7352941176470589, 'recall': 0.8928571428571429, 'f1_score': 0.8064516129032258, 'auc': 0.8991228070175439}
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 7 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.5901, Acc=0.8588 | Avg Client Train Loss=0.4138, Acc=0.8281
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Finished Round 7 =====
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - ----- Orchestrating Round 8 -----
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Starting Round 8/20 =====
+2025-05-11 09:53:45 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:45 - federated.server          - INFO     - Selected 2 clients for round 8: ['client_5', 'client_9']
+2025-05-11 09:53:45 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 8: Server selected clients: ['client_5', 'client_9']
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Starting local training for round 8...
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.7451, Train Accuracy: 0.6250
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.5396, Train Accuracy: 0.8125
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.4717, Train Accuracy: 0.7500
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Validation Metrics: Loss=0.3691, Acc=1.0000
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Local training round 8 completed in 0.05s.
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Metrics: Train Loss=0.5854, Train Acc=0.7292, Val Loss=0.3691, Val Acc=1.0000
+2025-05-11 09:53:45 - federated.client.client_5 - INFO     - Final calculated quality score for round 8: 1.708104e+00 (from avg_train_loss: 0.5854434867699941)
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Starting local training for round 8...
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 1.2360, Train Accuracy: 0.3438
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 1.1466, Train Accuracy: 0.2812
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.8484, Train Accuracy: 0.3438
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Validation Metrics: Loss=0.7280, Acc=0.2500
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Local training round 8 completed in 0.04s.
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Metrics: Train Loss=1.0770, Train Acc=0.3229, Val Loss=0.7280, Val Acc=0.2500
+2025-05-11 09:53:45 - federated.client.client_9 - INFO     - Final calculated quality score for round 8: 9.285102e-01 (from avg_train_loss: 1.0769930481910706)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_5 for round 8. (1/2 received)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_9 for round 8. (2/2 received)
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 8: Submitted 2 successful updates to server.
+2025-05-11 09:53:45 - federated.server          - INFO     - Finalizing Round 8...
+2025-05-11 09:53:45 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:45 - federated.server          - INFO     - Raw quality scores received: [1.7081038810651126, 0.9285102379902745]
+2025-05-11 09:53:45 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:45 - federated.server          - INFO     - Processed (valid positive) scores: [1.70810388 0.92851024]
+2025-05-11 09:53:45 - federated.server          - INFO     - Quality scores: Min=9.2851e-01, Max=1.7081e+00, Mean=1.3183e+00. Clipping to percentile range [5.0th=9.6749e-01, 95.0th=1.6691e+00]
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.633', '0.367']
+2025-05-11 09:53:45 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:45 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:45 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:45 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:45 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:45 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 8 Validation Metrics: {'loss': 0.4301073169007021, 'accuracy': 0.9411764705882353, 'precision': 0.8709677419354839, 'recall': 0.9642857142857143, 'f1_score': 0.9152542372881356, 'auc': 0.9924812030075187}
+2025-05-11 09:53:45 - federated.server          - INFO     - Round 8 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.4301, Acc=0.9412 | Avg Client Train Loss=0.8312, Acc=0.5260
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Finished Round 8 =====
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - ----- Orchestrating Round 9 -----
+2025-05-11 09:53:45 - federated.server          - INFO     - ===== Starting Round 9/20 =====
+2025-05-11 09:53:45 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:45 - federated.server          - INFO     - Selected 2 clients for round 9: ['client_3', 'client_1']
+2025-05-11 09:53:45 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 9: Server selected clients: ['client_3', 'client_1']
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Starting local training for round 9...
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.3221, Train Accuracy: 0.9375
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.2495, Train Accuracy: 0.9375
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.2464, Train Accuracy: 0.9688
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Validation Metrics: Loss=0.2522, Acc=0.8750
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Local training round 9 completed in 0.05s.
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Metrics: Train Loss=0.2727, Train Acc=0.9479, Val Loss=0.2522, Val Acc=0.8750
+2025-05-11 09:53:45 - federated.client.client_3 - INFO     - Final calculated quality score for round 9: 3.667403e+00 (from avg_train_loss: 0.27267154057820636)
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Starting local training for round 9...
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.3864, Train Accuracy: 0.9062
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.2875, Train Accuracy: 0.9688
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.2688, Train Accuracy: 0.9688
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Validation Metrics: Loss=0.6874, Acc=0.6250
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Encrypting model delta...
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Local training round 9 completed in 0.04s.
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Metrics: Train Loss=0.3142, Train Acc=0.9479, Val Loss=0.6874, Val Acc=0.6250
+2025-05-11 09:53:45 - federated.client.client_1 - INFO     - Final calculated quality score for round 9: 3.182216e+00 (from avg_train_loss: 0.31424542268117267)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_3 for round 9. (1/2 received)
+2025-05-11 09:53:45 - federated.server          - INFO     - Stored update from client client_1 for round 9. (2/2 received)
+2025-05-11 09:53:45 - cancer_detection_main     - INFO     - Round 9: Submitted 2 successful updates to server.
+2025-05-11 09:53:45 - federated.server          - INFO     - Finalizing Round 9...
+2025-05-11 09:53:45 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:45 - federated.server          - INFO     - Raw quality scores received: [3.667402657706143, 3.182216018460702]
+2025-05-11 09:53:45 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:45 - federated.server          - INFO     - Processed (valid positive) scores: [3.66740266 3.18221602]
+2025-05-11 09:53:45 - federated.server          - INFO     - Quality scores: Min=3.1822e+00, Max=3.6674e+00, Mean=3.4248e+00. Clipping to percentile range [5.0th=3.2065e+00, 95.0th=3.6431e+00]
+2025-05-11 09:53:45 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.532', '0.468']
+2025-05-11 09:53:45 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:45 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:46 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:46 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:46 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 9 Validation Metrics: {'loss': 0.3385505655232598, 'accuracy': 0.9294117647058824, 'precision': 0.8666666666666667, 'recall': 0.9285714285714286, 'f1_score': 0.896551724137931, 'auc': 0.993734335839599}
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 9 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.3386, Acc=0.9294 | Avg Client Train Loss=0.2935, Acc=0.9479
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Finished Round 9 =====
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - ----- Orchestrating Round 10 -----
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Starting Round 10/20 =====
+2025-05-11 09:53:46 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:46 - federated.server          - INFO     - Selected 2 clients for round 10: ['client_5', 'client_3']
+2025-05-11 09:53:46 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 10: Server selected clients: ['client_5', 'client_3']
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Starting local training for round 10...
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.3513, Train Accuracy: 0.8125
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.3633, Train Accuracy: 0.8438
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.2204, Train Accuracy: 0.9375
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Validation Metrics: Loss=0.1754, Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Saved checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/client_client_5/model_round_round_10.pt
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Local training round 10 completed in 0.04s.
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Metrics: Train Loss=0.3117, Train Acc=0.8646, Val Loss=0.1754, Val Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Final calculated quality score for round 10: 3.208675e+00 (from avg_train_loss: 0.31165417035420734)
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Starting local training for round 10...
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.2307, Train Accuracy: 0.9375
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.1770, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.1157, Train Accuracy: 1.0000
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Validation Metrics: Loss=0.1919, Acc=0.8750
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Saved checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/client_client_3/model_round_round_10.pt
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Local training round 10 completed in 0.04s.
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Metrics: Train Loss=0.1744, Train Acc=0.9688, Val Loss=0.1919, Val Acc=0.8750
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Final calculated quality score for round 10: 5.733019e+00 (from avg_train_loss: 0.17442716658115387)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_5 for round 10. (1/2 received)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_3 for round 10. (2/2 received)
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 10: Submitted 2 successful updates to server.
+2025-05-11 09:53:46 - federated.server          - INFO     - Finalizing Round 10...
+2025-05-11 09:53:46 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:46 - federated.server          - INFO     - Raw quality scores received: [3.208674506710298, 5.733019039300303]
+2025-05-11 09:53:46 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:46 - federated.server          - INFO     - Processed (valid positive) scores: [3.20867451 5.73301904]
+2025-05-11 09:53:46 - federated.server          - INFO     - Quality scores: Min=3.2087e+00, Max=5.7330e+00, Mean=4.4708e+00. Clipping to percentile range [5.0th=3.3349e+00, 95.0th=5.6068e+00]
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.373', '0.627']
+2025-05-11 09:53:46 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:46 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:46 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:46 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:46 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 10 Validation Metrics: {'loss': 0.23629676559392143, 'accuracy': 0.9529411764705882, 'precision': 0.9, 'recall': 0.9642857142857143, 'f1_score': 0.9310344827586207, 'auc': 0.9949874686716792}
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 10 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.2363, Acc=0.9529 | Avg Client Train Loss=0.2430, Acc=0.9167
+2025-05-11 09:53:46 - federated.server          - INFO     - Saved global model checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/server/global_model_round_10.pt
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Finished Round 10 =====
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - ----- Orchestrating Round 11 -----
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Starting Round 11/20 =====
+2025-05-11 09:53:46 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:46 - federated.server          - INFO     - Selected 2 clients for round 11: ['client_6', 'client_3']
+2025-05-11 09:53:46 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 11: Server selected clients: ['client_6', 'client_3']
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Starting local training for round 11...
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.4595, Train Accuracy: 0.7500
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.5146, Train Accuracy: 0.7188
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.3021, Train Accuracy: 0.8750
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Validation Metrics: Loss=0.2591, Acc=0.8750
+2025-05-11 09:53:46 - federated.client.client_6 - WARNING  - Client client_6 is ADVERSARIAL: scaling delta by -2.0.
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Local training round 11 completed in 0.04s.
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Metrics: Train Loss=0.4254, Train Acc=0.7812, Val Loss=0.2591, Val Acc=0.8750
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Final calculated quality score for round 11: 2.350774e+00 (from avg_train_loss: 0.4253908395767212)
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Starting local training for round 11...
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.1239, Train Accuracy: 1.0000
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.1710, Train Accuracy: 0.9375
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.1142, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Validation Metrics: Loss=0.1332, Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Local training round 11 completed in 0.04s.
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Metrics: Train Loss=0.1364, Train Acc=0.9688, Val Loss=0.1332, Val Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Final calculated quality score for round 11: 7.332460e+00 (from avg_train_loss: 0.13637888183196387)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_6 for round 11. (1/2 received)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_3 for round 11. (2/2 received)
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 11: Submitted 2 successful updates to server.
+2025-05-11 09:53:46 - federated.server          - INFO     - Finalizing Round 11...
+2025-05-11 09:53:46 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:46 - federated.server          - INFO     - Raw quality scores received: [2.350773820661517, 7.3324597922156745]
+2025-05-11 09:53:46 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:46 - federated.server          - INFO     - Processed (valid positive) scores: [2.35077382 7.33245979]
+2025-05-11 09:53:46 - federated.server          - INFO     - Quality scores: Min=2.3508e+00, Max=7.3325e+00, Mean=4.8416e+00. Clipping to percentile range [5.0th=2.5999e+00, 95.0th=7.0834e+00]
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.268', '0.732']
+2025-05-11 09:53:46 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:46 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:46 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:46 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:46 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 11 Validation Metrics: {'loss': 0.2825760792283451, 'accuracy': 0.9176470588235294, 'precision': 0.8387096774193549, 'recall': 0.9285714285714286, 'f1_score': 0.8813559322033898, 'auc': 0.9899749373433584}
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 11 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.2826, Acc=0.9176 | Avg Client Train Loss=0.2809, Acc=0.8750
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Finished Round 11 =====
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - ----- Orchestrating Round 12 -----
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Starting Round 12/20 =====
+2025-05-11 09:53:46 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:46 - federated.server          - INFO     - Selected 2 clients for round 12: ['client_2', 'client_6']
+2025-05-11 09:53:46 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 12: Server selected clients: ['client_2', 'client_6']
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Starting local training for round 12...
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.5778, Train Accuracy: 1.0000
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.6600, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.5587, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Validation Metrics: Loss=0.2779, Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Local training round 12 completed in 0.04s.
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Metrics: Train Loss=0.5988, Train Acc=0.9792, Val Loss=0.2779, Val Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Final calculated quality score for round 12: 1.669897e+00 (from avg_train_loss: 0.5988382498423258)
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Starting local training for round 12...
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.8275, Train Accuracy: 0.6562
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.6455, Train Accuracy: 0.7188
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.7680, Train Accuracy: 0.5938
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Validation Metrics: Loss=0.3080, Acc=0.7500
+2025-05-11 09:53:46 - federated.client.client_6 - WARNING  - Client client_6 is ADVERSARIAL: scaling delta by -2.0.
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Local training round 12 completed in 0.05s.
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Metrics: Train Loss=0.7470, Train Acc=0.6562, Val Loss=0.3080, Val Acc=0.7500
+2025-05-11 09:53:46 - federated.client.client_6 - INFO     - Final calculated quality score for round 12: 1.338748e+00 (from avg_train_loss: 0.7469654480616251)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_2 for round 12. (1/2 received)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_6 for round 12. (2/2 received)
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 12: Submitted 2 successful updates to server.
+2025-05-11 09:53:46 - federated.server          - INFO     - Finalizing Round 12...
+2025-05-11 09:53:46 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:46 - federated.server          - INFO     - Raw quality scores received: [1.6698972224404123, 1.3387482163288538]
+2025-05-11 09:53:46 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:46 - federated.server          - INFO     - Processed (valid positive) scores: [1.66989722 1.33874822]
+2025-05-11 09:53:46 - federated.server          - INFO     - Quality scores: Min=1.3387e+00, Max=1.6699e+00, Mean=1.5043e+00. Clipping to percentile range [5.0th=1.3553e+00, 95.0th=1.6533e+00]
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.550', '0.450']
+2025-05-11 09:53:46 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:46 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:46 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:46 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:46 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 12 Validation Metrics: {'loss': 0.39868605242056004, 'accuracy': 0.9176470588235294, 'precision': 0.8387096774193549, 'recall': 0.9285714285714286, 'f1_score': 0.8813559322033898, 'auc': 0.9711779448621554}
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 12 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.3987, Acc=0.9176 | Avg Client Train Loss=0.6729, Acc=0.8177
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Finished Round 12 =====
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - ----- Orchestrating Round 13 -----
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Starting Round 13/20 =====
+2025-05-11 09:53:46 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:46 - federated.server          - INFO     - Selected 2 clients for round 13: ['client_4', 'client_2']
+2025-05-11 09:53:46 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 13: Server selected clients: ['client_4', 'client_2']
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Starting local training for round 13...
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.5279, Train Accuracy: 0.8438
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.3776, Train Accuracy: 0.8438
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.2953, Train Accuracy: 0.8438
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Validation Metrics: Loss=0.1678, Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Local training round 13 completed in 0.05s.
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Metrics: Train Loss=0.4003, Train Acc=0.8438, Val Loss=0.1678, Val Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_4 - INFO     - Final calculated quality score for round 13: 2.498359e+00 (from avg_train_loss: 0.4002616802851359)
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Starting local training for round 13...
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.3502, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.5143, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.4680, Train Accuracy: 0.9375
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Validation Metrics: Loss=0.1469, Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Local training round 13 completed in 0.05s.
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Metrics: Train Loss=0.4442, Train Acc=0.9583, Val Loss=0.1469, Val Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Final calculated quality score for round 13: 2.251363e+00 (from avg_train_loss: 0.4441743592421214)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_4 for round 13. (1/2 received)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_2 for round 13. (2/2 received)
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 13: Submitted 2 successful updates to server.
+2025-05-11 09:53:46 - federated.server          - INFO     - Finalizing Round 13...
+2025-05-11 09:53:46 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:46 - federated.server          - INFO     - Raw quality scores received: [2.4983593256499157, 2.251363069095638]
+2025-05-11 09:53:46 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:46 - federated.server          - INFO     - Processed (valid positive) scores: [2.49835933 2.25136307]
+2025-05-11 09:53:46 - federated.server          - INFO     - Quality scores: Min=2.2514e+00, Max=2.4984e+00, Mean=2.3749e+00. Clipping to percentile range [5.0th=2.2637e+00, 95.0th=2.4860e+00]
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.523', '0.477']
+2025-05-11 09:53:46 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:46 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:46 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:46 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.04s.
+2025-05-11 09:53:46 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 13 Validation Metrics: {'loss': 0.26353420054211335, 'accuracy': 0.9411764705882353, 'precision': 0.8709677419354839, 'recall': 0.9642857142857143, 'f1_score': 0.9152542372881356, 'auc': 0.9962406015037594}
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 13 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.2635, Acc=0.9412 | Avg Client Train Loss=0.4222, Acc=0.9010
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Finished Round 13 =====
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - ----- Orchestrating Round 14 -----
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Starting Round 14/20 =====
+2025-05-11 09:53:46 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:46 - federated.server          - INFO     - Selected 2 clients for round 14: ['client_3', 'client_5']
+2025-05-11 09:53:46 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 14: Server selected clients: ['client_3', 'client_5']
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Starting local training for round 14...
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.1802, Train Accuracy: 0.9375
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.0946, Train Accuracy: 1.0000
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.1206, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Validation Metrics: Loss=0.1079, Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Local training round 14 completed in 0.04s.
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Metrics: Train Loss=0.1318, Train Acc=0.9688, Val Loss=0.1079, Val Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_3 - INFO     - Final calculated quality score for round 14: 7.588195e+00 (from avg_train_loss: 0.13178264101346335)
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Starting local training for round 14...
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.8385, Train Accuracy: 0.7188
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.5914, Train Accuracy: 0.8125
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.2911, Train Accuracy: 0.8438
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Validation Metrics: Loss=0.1252, Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Local training round 14 completed in 0.05s.
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Metrics: Train Loss=0.5737, Train Acc=0.7917, Val Loss=0.1252, Val Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Final calculated quality score for round 14: 1.743084e+00 (from avg_train_loss: 0.5736947059631348)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_3 for round 14. (1/2 received)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_5 for round 14. (2/2 received)
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 14: Submitted 2 successful updates to server.
+2025-05-11 09:53:46 - federated.server          - INFO     - Finalizing Round 14...
+2025-05-11 09:53:46 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:46 - federated.server          - INFO     - Raw quality scores received: [7.588195259363319, 1.74308433827507]
+2025-05-11 09:53:46 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:46 - federated.server          - INFO     - Processed (valid positive) scores: [7.58819526 1.74308434]
+2025-05-11 09:53:46 - federated.server          - INFO     - Quality scores: Min=1.7431e+00, Max=7.5882e+00, Mean=4.6656e+00. Clipping to percentile range [5.0th=2.0353e+00, 95.0th=7.2959e+00]
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.782', '0.218']
+2025-05-11 09:53:46 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:46 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:46 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:46 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:46 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 14 Validation Metrics: {'loss': 0.17998875554870156, 'accuracy': 0.9294117647058824, 'precision': 0.8666666666666667, 'recall': 0.9285714285714286, 'f1_score': 0.896551724137931, 'auc': 0.994360902255639}
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 14 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.1800, Acc=0.9294 | Avg Client Train Loss=0.3527, Acc=0.8802
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Finished Round 14 =====
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - ----- Orchestrating Round 15 -----
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Starting Round 15/20 =====
+2025-05-11 09:53:46 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:46 - federated.server          - INFO     - Selected 2 clients for round 15: ['client_8', 'client_1']
+2025-05-11 09:53:46 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 15: Server selected clients: ['client_8', 'client_1']
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Starting local training for round 15...
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 1.1857, Train Accuracy: 0.6562
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.9448, Train Accuracy: 0.5625
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.6842, Train Accuracy: 0.7188
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Validation Metrics: Loss=0.1654, Acc=0.8750
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Local training round 15 completed in 0.05s.
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Metrics: Train Loss=0.9382, Train Acc=0.6458, Val Loss=0.1654, Val Acc=0.8750
+2025-05-11 09:53:46 - federated.client.client_8 - INFO     - Final calculated quality score for round 15: 1.065829e+00 (from avg_train_loss: 0.9382358193397522)
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Starting local training for round 15...
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.1697, Train Accuracy: 0.9375
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.5204, Train Accuracy: 0.8125
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.1258, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Validation Metrics: Loss=0.6769, Acc=0.6250
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Local training round 15 completed in 0.05s.
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Metrics: Train Loss=0.2720, Train Acc=0.9062, Val Loss=0.6769, Val Acc=0.6250
+2025-05-11 09:53:46 - federated.client.client_1 - INFO     - Final calculated quality score for round 15: 3.677062e+00 (from avg_train_loss: 0.2719552467266719)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_8 for round 15. (1/2 received)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_1 for round 15. (2/2 received)
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 15: Submitted 2 successful updates to server.
+2025-05-11 09:53:46 - federated.server          - INFO     - Finalizing Round 15...
+2025-05-11 09:53:46 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:46 - federated.server          - INFO     - Raw quality scores received: [1.065828988361074, 3.6770620716980424]
+2025-05-11 09:53:46 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:46 - federated.server          - INFO     - Processed (valid positive) scores: [1.06582899 3.67706207]
+2025-05-11 09:53:46 - federated.server          - INFO     - Quality scores: Min=1.0658e+00, Max=3.6771e+00, Mean=2.3714e+00. Clipping to percentile range [5.0th=1.1964e+00, 95.0th=3.5465e+00]
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.252', '0.748']
+2025-05-11 09:53:46 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:46 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:46 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:46 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.04s.
+2025-05-11 09:53:46 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 15 Validation Metrics: {'loss': 0.21532417430597192, 'accuracy': 0.9411764705882353, 'precision': 0.8709677419354839, 'recall': 0.9642857142857143, 'f1_score': 0.9152542372881356, 'auc': 0.9843358395989974}
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 15 Summary (0.05s): Selected=2, Received=2. Global Eval Loss=0.2153, Acc=0.9412 | Avg Client Train Loss=0.6051, Acc=0.7760
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Finished Round 15 =====
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - ----- Orchestrating Round 16 -----
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Starting Round 16/20 =====
+2025-05-11 09:53:46 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:46 - federated.server          - INFO     - Selected 2 clients for round 16: ['client_7', 'client_2']
+2025-05-11 09:53:46 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 16: Server selected clients: ['client_7', 'client_2']
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Starting local training for round 16...
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.7660, Train Accuracy: 0.6875
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.7318, Train Accuracy: 0.6562
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.5692, Train Accuracy: 0.7188
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Validation Metrics: Loss=0.4478, Acc=0.8750
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Local training round 16 completed in 0.05s.
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Metrics: Train Loss=0.6890, Train Acc=0.6875, Val Loss=0.4478, Val Acc=0.8750
+2025-05-11 09:53:46 - federated.client.client_7 - INFO     - Final calculated quality score for round 16: 1.451400e+00 (from avg_train_loss: 0.6889888644218445)
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Starting local training for round 16...
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.7328, Train Accuracy: 0.9375
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.9152, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.4693, Train Accuracy: 0.9688
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Validation Metrics: Loss=0.2124, Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Encrypting model delta...
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Local training round 16 completed in 0.05s.
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Metrics: Train Loss=0.7058, Train Acc=0.9583, Val Loss=0.2124, Val Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_2 - INFO     - Final calculated quality score for round 16: 1.416896e+00 (from avg_train_loss: 0.7057668765385946)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_7 for round 16. (1/2 received)
+2025-05-11 09:53:46 - federated.server          - INFO     - Stored update from client client_2 for round 16. (2/2 received)
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 16: Submitted 2 successful updates to server.
+2025-05-11 09:53:46 - federated.server          - INFO     - Finalizing Round 16...
+2025-05-11 09:53:46 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:46 - federated.server          - INFO     - Raw quality scores received: [1.4514001607834028, 1.416896451712216]
+2025-05-11 09:53:46 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:46 - federated.server          - INFO     - Processed (valid positive) scores: [1.45140016 1.41689645]
+2025-05-11 09:53:46 - federated.server          - INFO     - Quality scores: Min=1.4169e+00, Max=1.4514e+00, Mean=1.4341e+00. Clipping to percentile range [5.0th=1.4186e+00, 95.0th=1.4497e+00]
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.505', '0.495']
+2025-05-11 09:53:46 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:46 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:46 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:46 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:46 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:46 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:46 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 16 Validation Metrics: {'loss': 0.19043073811951805, 'accuracy': 0.9294117647058824, 'precision': 0.84375, 'recall': 0.9642857142857143, 'f1_score': 0.9, 'auc': 0.994360902255639}
+2025-05-11 09:53:46 - federated.server          - INFO     - Round 16 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.1904, Acc=0.9294 | Avg Client Train Loss=0.6974, Acc=0.8229
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Finished Round 16 =====
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - ----- Orchestrating Round 17 -----
+2025-05-11 09:53:46 - federated.server          - INFO     - ===== Starting Round 17/20 =====
+2025-05-11 09:53:46 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:46 - federated.server          - INFO     - Selected 2 clients for round 17: ['client_5', 'client_8']
+2025-05-11 09:53:46 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:46 - cancer_detection_main     - INFO     - Round 17: Server selected clients: ['client_5', 'client_8']
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Starting local training for round 17...
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.2053, Train Accuracy: 0.9375
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.2108, Train Accuracy: 0.9062
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.3055, Train Accuracy: 0.8438
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Validation Metrics: Loss=0.0951, Acc=1.0000
+2025-05-11 09:53:46 - federated.client.client_5 - INFO     - Encrypting model delta...
+2025-05-11 09:53:47 - federated.client.client_5 - INFO     - Local training round 17 completed in 0.04s.
+2025-05-11 09:53:47 - federated.client.client_5 - INFO     - Metrics: Train Loss=0.2405, Train Acc=0.8958, Val Loss=0.0951, Val Acc=1.0000
+2025-05-11 09:53:47 - federated.client.client_5 - INFO     - Final calculated quality score for round 17: 4.157361e+00 (from avg_train_loss: 0.24053621292114258)
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Starting local training for round 17...
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.8555, Train Accuracy: 0.6562
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.6718, Train Accuracy: 0.6875
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.5432, Train Accuracy: 0.7812
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Validation Metrics: Loss=0.2140, Acc=1.0000
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Encrypting model delta...
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Local training round 17 completed in 0.04s.
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Metrics: Train Loss=0.6902, Train Acc=0.7083, Val Loss=0.2140, Val Acc=1.0000
+2025-05-11 09:53:47 - federated.client.client_8 - INFO     - Final calculated quality score for round 17: 1.448940e+00 (from avg_train_loss: 0.6901586850484213)
+2025-05-11 09:53:47 - federated.server          - INFO     - Stored update from client client_5 for round 17. (1/2 received)
+2025-05-11 09:53:47 - federated.server          - INFO     - Stored update from client client_8 for round 17. (2/2 received)
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Round 17: Submitted 2 successful updates to server.
+2025-05-11 09:53:47 - federated.server          - INFO     - Finalizing Round 17...
+2025-05-11 09:53:47 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:47 - federated.server          - INFO     - Raw quality scores received: [4.157360883398274, 1.448940037594112]
+2025-05-11 09:53:47 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:47 - federated.server          - INFO     - Processed (valid positive) scores: [4.15736088 1.44894004]
+2025-05-11 09:53:47 - federated.server          - INFO     - Quality scores: Min=1.4489e+00, Max=4.1574e+00, Mean=2.8032e+00. Clipping to percentile range [5.0th=1.5844e+00, 95.0th=4.0219e+00]
+2025-05-11 09:53:47 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.717', '0.283']
+2025-05-11 09:53:47 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:47 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:47 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:47 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:47 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:47 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:47 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:47 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:47 - federated.server          - INFO     - Round 17 Validation Metrics: {'loss': 0.12376036819289712, 'accuracy': 0.9529411764705882, 'precision': 0.875, 'recall': 1.0, 'f1_score': 0.9333333333333333, 'auc': 0.9981203007518797}
+2025-05-11 09:53:47 - federated.server          - INFO     - Round 17 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.1238, Acc=0.9529 | Avg Client Train Loss=0.4653, Acc=0.8021
+2025-05-11 09:53:47 - federated.server          - INFO     - ===== Finished Round 17 =====
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - ----- Orchestrating Round 18 -----
+2025-05-11 09:53:47 - federated.server          - INFO     - ===== Starting Round 18/20 =====
+2025-05-11 09:53:47 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:47 - federated.server          - INFO     - Selected 2 clients for round 18: ['client_2', 'client_9']
+2025-05-11 09:53:47 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Round 18: Server selected clients: ['client_2', 'client_9']
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Starting local training for round 18...
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.3882, Train Accuracy: 0.9375
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.5744, Train Accuracy: 0.9688
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.8865, Train Accuracy: 0.9688
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Validation Metrics: Loss=0.1577, Acc=1.0000
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Encrypting model delta...
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Local training round 18 completed in 0.05s.
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Metrics: Train Loss=0.6164, Train Acc=0.9583, Val Loss=0.1577, Val Acc=1.0000
+2025-05-11 09:53:47 - federated.client.client_2 - INFO     - Final calculated quality score for round 18: 1.622395e+00 (from avg_train_loss: 0.6163717210292816)
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Starting local training for round 18...
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 1.0106, Train Accuracy: 0.5938
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 1.4212, Train Accuracy: 0.6875
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.8968, Train Accuracy: 0.6875
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Validation Metrics: Loss=1.9615, Acc=0.2500
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Encrypting model delta...
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Local training round 18 completed in 0.04s.
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Metrics: Train Loss=1.1095, Train Acc=0.6562, Val Loss=1.9615, Val Acc=0.2500
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Final calculated quality score for round 18: 9.012785e-01 (from avg_train_loss: 1.1095339457194011)
+2025-05-11 09:53:47 - federated.server          - INFO     - Stored update from client client_2 for round 18. (1/2 received)
+2025-05-11 09:53:47 - federated.server          - INFO     - Stored update from client client_9 for round 18. (2/2 received)
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Round 18: Submitted 2 successful updates to server.
+2025-05-11 09:53:47 - federated.server          - INFO     - Finalizing Round 18...
+2025-05-11 09:53:47 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:47 - federated.server          - INFO     - Raw quality scores received: [1.6223949663607737, 0.9012785075927638]
+2025-05-11 09:53:47 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:47 - federated.server          - INFO     - Processed (valid positive) scores: [1.62239497 0.90127851]
+2025-05-11 09:53:47 - federated.server          - INFO     - Quality scores: Min=9.0128e-01, Max=1.6224e+00, Mean=1.2618e+00. Clipping to percentile range [5.0th=9.3733e-01, 95.0th=1.5863e+00]
+2025-05-11 09:53:47 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.629', '0.371']
+2025-05-11 09:53:47 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:47 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:47 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:47 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:47 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:47 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:47 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:47 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:47 - federated.server          - INFO     - Round 18 Validation Metrics: {'loss': 0.12736804590505713, 'accuracy': 0.9529411764705882, 'precision': 0.875, 'recall': 1.0, 'f1_score': 0.9333333333333333, 'auc': 0.9987468671679198}
+2025-05-11 09:53:47 - federated.server          - INFO     - Round 18 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.1274, Acc=0.9529 | Avg Client Train Loss=0.8630, Acc=0.8073
+2025-05-11 09:53:47 - federated.server          - INFO     - ===== Finished Round 18 =====
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - ----- Orchestrating Round 19 -----
+2025-05-11 09:53:47 - federated.server          - INFO     - ===== Starting Round 19/20 =====
+2025-05-11 09:53:47 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:47 - federated.server          - INFO     - Selected 2 clients for round 19: ['client_9', 'client_1']
+2025-05-11 09:53:47 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Round 19: Server selected clients: ['client_9', 'client_1']
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Starting local training for round 19...
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.8282, Train Accuracy: 0.6250
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 1.1602, Train Accuracy: 0.6875
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.6383, Train Accuracy: 0.7188
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Validation Metrics: Loss=1.5670, Acc=0.2500
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Encrypting model delta...
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Local training round 19 completed in 0.04s.
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Metrics: Train Loss=0.8756, Train Acc=0.6771, Val Loss=1.5670, Val Acc=0.2500
+2025-05-11 09:53:47 - federated.client.client_9 - INFO     - Final calculated quality score for round 19: 1.142131e+00 (from avg_train_loss: 0.8755556344985962)
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Starting local training for round 19...
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.3278, Train Accuracy: 0.8438
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.2484, Train Accuracy: 0.9062
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.3072, Train Accuracy: 0.8750
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Validation Metrics: Loss=0.7673, Acc=0.6250
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Encrypting model delta...
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Local training round 19 completed in 0.04s.
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Metrics: Train Loss=0.2944, Train Acc=0.8750, Val Loss=0.7673, Val Acc=0.6250
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Final calculated quality score for round 19: 3.396272e+00 (from avg_train_loss: 0.29443952441215515)
+2025-05-11 09:53:47 - federated.server          - INFO     - Stored update from client client_9 for round 19. (1/2 received)
+2025-05-11 09:53:47 - federated.server          - INFO     - Stored update from client client_1 for round 19. (2/2 received)
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Round 19: Submitted 2 successful updates to server.
+2025-05-11 09:53:47 - federated.server          - INFO     - Finalizing Round 19...
+2025-05-11 09:53:47 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:47 - federated.server          - INFO     - Raw quality scores received: [1.142130572253237, 3.3962716307358876]
+2025-05-11 09:53:47 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:47 - federated.server          - INFO     - Processed (valid positive) scores: [1.14213057 3.39627163]
+2025-05-11 09:53:47 - federated.server          - INFO     - Quality scores: Min=1.1421e+00, Max=3.3963e+00, Mean=2.2692e+00. Clipping to percentile range [5.0th=1.2548e+00, 95.0th=3.2836e+00]
+2025-05-11 09:53:47 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.276', '0.724']
+2025-05-11 09:53:47 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:47 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:47 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:47 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:47 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:47 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:47 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:47 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:47 - federated.server          - INFO     - Round 19 Validation Metrics: {'loss': 0.15233313055599437, 'accuracy': 0.9529411764705882, 'precision': 0.9, 'recall': 0.9642857142857143, 'f1_score': 0.9310344827586207, 'auc': 0.9974937343358397}
+2025-05-11 09:53:47 - federated.server          - INFO     - Round 19 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.1523, Acc=0.9529 | Avg Client Train Loss=0.5850, Acc=0.7760
+2025-05-11 09:53:47 - federated.server          - INFO     - ===== Finished Round 19 =====
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - ----- Orchestrating Round 20 -----
+2025-05-11 09:53:47 - federated.server          - INFO     - ===== Starting Round 20/20 =====
+2025-05-11 09:53:47 - federated.server          - INFO     - Available clients for selection: 10
+2025-05-11 09:53:47 - federated.server          - INFO     - Selected 2 clients for round 20: ['client_1', 'client_3']
+2025-05-11 09:53:47 - federated.server          - INFO     - Exporting PLAIN global model parameters for round start...
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Round 20: Server selected clients: ['client_1', 'client_3']
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Starting local training for round 20...
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.2095, Train Accuracy: 0.9688
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.2852, Train Accuracy: 0.9375
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.1420, Train Accuracy: 0.9688
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Validation Metrics: Loss=0.6977, Acc=0.6250
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Encrypting model delta...
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Saved checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/client_client_1/model_round_round_20.pt
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Local training round 20 completed in 0.04s.
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Metrics: Train Loss=0.2122, Train Acc=0.9583, Val Loss=0.6977, Val Acc=0.6250
+2025-05-11 09:53:47 - federated.client.client_1 - INFO     - Final calculated quality score for round 20: 4.712109e+00 (from avg_train_loss: 0.21221818526585898)
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Starting local training for round 20...
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Round Config: Epochs=3, LR=0.01
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Using Adam optimizer with LR=0.01
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Epoch 1/3 finished in 0.00s. Avg Train Loss: 0.1678, Train Accuracy: 0.9375
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Epoch 2/3 finished in 0.00s. Avg Train Loss: 0.1162, Train Accuracy: 1.0000
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Epoch 3/3 finished in 0.00s. Avg Train Loss: 0.1159, Train Accuracy: 0.9688
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Evaluating model on local validation set...
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Validation Metrics: Loss=0.0776, Acc=1.0000
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Encrypting model delta...
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Saved checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/client_client_3/model_round_round_20.pt
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Local training round 20 completed in 0.05s.
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Metrics: Train Loss=0.1333, Train Acc=0.9688, Val Loss=0.0776, Val Acc=1.0000
+2025-05-11 09:53:47 - federated.client.client_3 - INFO     - Final calculated quality score for round 20: 7.501224e+00 (from avg_train_loss: 0.13331057876348495)
+2025-05-11 09:53:47 - federated.server          - INFO     - Stored update from client client_1 for round 20. (1/2 received)
+2025-05-11 09:53:47 - federated.server          - INFO     - Stored update from client client_3 for round 20. (2/2 received)
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Round 20: Submitted 2 successful updates to server.
+2025-05-11 09:53:47 - federated.server          - INFO     - Finalizing Round 20...
+2025-05-11 09:53:47 - federated.server          - INFO     - Starting aggregation process...
+2025-05-11 09:53:47 - federated.server          - INFO     - Raw quality scores received: [4.712109316352541, 7.501223894243667]
+2025-05-11 09:53:47 - federated.server          - INFO     - Using quality-aware aggregation.
+2025-05-11 09:53:47 - federated.server          - INFO     - Processed (valid positive) scores: [4.71210932 7.50122389]
+2025-05-11 09:53:47 - federated.server          - INFO     - Quality scores: Min=4.7121e+00, Max=7.5012e+00, Mean=6.1067e+00. Clipping to percentile range [5.0th=4.8516e+00, 95.0th=7.3618e+00]
+2025-05-11 09:53:47 - federated.server          - INFO     - Aggregating 2 delta updates. Aggregation weights: ['0.397', '0.603']
+2025-05-11 09:53:47 - federated.server          - INFO     - Updates (deltas) are encrypted.
+2025-05-11 09:53:47 - federated.server          - INFO     - Performing secure aggregation of encrypted DELTAS with HE...
+2025-05-11 09:53:47 - federated.server          - INFO     - Decrypting aggregated delta...
+2025-05-11 09:53:47 - federated.server          - INFO     - Decryption of aggregated delta took 0.01s
+2025-05-11 09:53:47 - federated.server          - INFO     - Applying aggregated delta to global model...
+2025-05-11 09:53:47 - federated.server          - INFO     - Successfully applied aggregated delta to 10 model parameter groups.
+2025-05-11 09:53:47 - federated.server          - INFO     - Aggregation and model update (with deltas) completed in 0.03s.
+2025-05-11 09:53:47 - federated.server          - INFO     - Evaluating updated global model (Validation)...
+2025-05-11 09:53:47 - federated.server          - INFO     - Round 20 Validation Metrics: {'loss': 0.16196917207802045, 'accuracy': 0.9411764705882353, 'precision': 0.8709677419354839, 'recall': 0.9642857142857143, 'f1_score': 0.9152542372881356, 'auc': 0.9968671679197995}
+2025-05-11 09:53:47 - federated.server          - INFO     - Round 20 Summary (0.04s): Selected=2, Received=2. Global Eval Loss=0.1620, Acc=0.9412 | Avg Client Train Loss=0.1728, Acc=0.9635
+2025-05-11 09:53:47 - federated.server          - INFO     - Saved global model checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/server/global_model_round_20.pt
+2025-05-11 09:53:47 - federated.server          - INFO     - ===== Finished Round 20 =====
+2025-05-11 09:53:47 - federated.server          - INFO     - Maximum rounds reached.
+2025-05-11 09:53:47 - federated.server          - INFO     - ===== Running Final Evaluation on Test Set =====
+2025-05-11 09:53:47 - federated.server          - INFO     - Final Test Metrics: {'loss': 0.2177412857027615, 'accuracy': 0.9176470588235294, 'precision': 0.8974358974358975, 'recall': 0.9210526315789473, 'f1_score': 0.9090909090909091, 'auc': 0.9792833146696528}
+2025-05-11 09:53:47 - federated.server          - INFO     - Training history saved to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/results/fl_data_S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_training_history.json
+2025-05-11 09:53:47 - federated.server          - INFO     - ==============================================
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Demonstrating prediction with the final global model...
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Sample for prediction: Actual Target=0.0, Predicted Probability (Malignant)=0.1258, Predicted Class (0=Benign, 1=Malignant)=0
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Federated learning simulation loop finished.
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Shutting down server...
+2025-05-11 09:53:47 - federated.server          - INFO     - Stopping federated learning server...
+2025-05-11 09:53:47 - federated.server          - INFO     - Saved global model checkpoint to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/checkpoints/server/global_model_final.pt
+2025-05-11 09:53:47 - federated.server          - INFO     - Training history saved to experiment_results/S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_20250511_095336/results/fl_data_S3b_FL_HE_Bad_Clients_QualityRobust_5_95_run1_training_history.json
+2025-05-11 09:53:47 - federated.server          - INFO     - Federated server stopped.
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Federated learning process terminated.
+2025-05-11 09:53:47 - cancer_detection_main     - INFO     - Main script finished.

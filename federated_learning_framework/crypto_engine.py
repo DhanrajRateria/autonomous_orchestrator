@@ -7,6 +7,7 @@ import base64
 import pickle
 import time
 import torch
+from pathlib import Path
 
 from federated_learning_framework.config import CryptoConfig # Assuming config.py is in this path
 
@@ -475,17 +476,18 @@ class CryptoEngine:
 
         # Save secret key separately (ONLY if it exists, i.e., on the server)
         if self.secret_key:
-            secret_key_path = f"{path}.secret"
+            secret_key_path = f"{Path(path).parent / (Path(path).stem + '_sk')}{Path(path).suffix}"
             try:
                  # SecretKey doesn't have a direct serialize, need to get it from context before make_public?
                  # Let's re-create context temporarily to get serializable secret key - this is awkward.
                  # OR - Store the secret key bytes when generated. Let's assume we stored it.
                  # TenSEAL SecretKey objects are directly serializable via pickle
+                secret_key_bytes = self.secret_key.serialize()
                 with open(secret_key_path, "wb") as f:
-                    pickle.dump(self.secret_key, f)
+                    f.write(secret_key_bytes)
                 self.logger.info(f"Secret key saved to {secret_key_path}")
             except Exception as e:
-                 self.logger.error(f"Failed to save secret key to {secret_key_path}: {e}", exc_info=True)
+                self.logger.error(f"Failed to save secret key to {secret_key_path}: {e}", exc_info=True)
 
 
     def load_context_from_file(self, path: str, load_secret: bool = False):
@@ -514,13 +516,14 @@ class CryptoEngine:
 
         # Load secret key if requested and possible
         if load_secret:
-            secret_key_path = f"{path}.secret"
+            secret_key_path = f"{Path(path).parent / (Path(path).stem + '_sk')}{Path(path).suffix}"
             if self.context: # Only load secret key if public context loaded okay
                 try:
                     with open(secret_key_path, "rb") as f:
                         self.secret_key = pickle.load(f)
                     # Re-associate secret key with the context (is this needed? TenSEAL handles this internally)
                     # self.context.set_secret_key(self.secret_key) # May not be necessary/available API
+                    self.secret_key = ts.secret_key_from(self.context, secret_key_bytes)
                     self.logger.info(f"Secret key loaded from {secret_key_path}")
                 except FileNotFoundError:
                     self.logger.warning(f"Secret key file not found: {secret_key_path}. Cannot perform decryption.")

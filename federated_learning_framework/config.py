@@ -18,6 +18,27 @@ class DataConfig:
     test_split: float = 0.1
     batch_size: int = 32
     preprocessing_steps: List[str] = field(default_factory=list) # Future use
+    pos_weight: Optional[float] = None
+
+@dataclass
+class QualityConfig:
+    enabled: bool = True # Enable quality-aware aggregation
+    score_epsilon: float = 1e-6 # For 1 / (loss + epsilon)
+    robust_score_aggregation: bool = True # Enable robust clipping of scores
+    # Percentile clipping is specified, so let's use that
+    score_clip_percentile_lower: float = 5.0 # e.g., 5th percentile
+    score_clip_percentile_upper: float = 95.0 # e.g., 95th percentile
+    # MAD-based clipping can be an alternative if you want to add it later
+    # use_mad_clipping: bool = False
+    # mad_clipping_threshold_factor: float = 2.0 # e.g., median +/- 2*MAD
+
+@dataclass
+class RobustnessConfig:
+    fraction_noisy_clients: float = 0.0 # 0.0 to 1.0
+    label_flip_probability: float = 0.1 # Probability of flipping a label for noisy clients
+    fraction_adversarial_clients: float = 0.0 # 0.0 to 1.0
+    # For model poisoning, the delta is scaled.
+    attack_scale_factor: float = -1.5 # e.g., invert and amplify delta
 
 @dataclass
 class ModelConfig:
@@ -87,6 +108,8 @@ class FrameworkConfig:
     crypto: CryptoConfig
     privacy: PrivacyConfig
     system: SystemConfig
+    quality: QualityConfig = field(default_factory=QualityConfig)
+    robustness: RobustnessConfig = field(default_factory=RobustnessConfig)
 
     # Keep from_file, save, to_dict, _dataclass_to_dict methods as they were
 
@@ -111,6 +134,8 @@ class FrameworkConfig:
         crypto_config = CryptoConfig(**config_data.get('crypto', {}))
         privacy_config = PrivacyConfig(**config_data.get('privacy', {}))
         system_config = SystemConfig(**config_data.get('system', {}))
+        quality_config = QualityConfig(**config_data.get('quality', {}))
+        robustness_config = RobustnessConfig(**config_data.get('robustness', {}))
 
         # Create and return main config
         return cls(
@@ -120,7 +145,9 @@ class FrameworkConfig:
             federated=federated_config,
             crypto=crypto_config,
             privacy=privacy_config,
-            system=system_config
+            system=system_config,
+            quality=quality_config,
+            robustness=robustness_config 
         )
 
     def save(self, config_path: str):
@@ -145,7 +172,9 @@ class FrameworkConfig:
             'federated': self._dataclass_to_dict(self.federated),
             'crypto': self._dataclass_to_dict(self.crypto),
             'privacy': self._dataclass_to_dict(self.privacy),
-            'system': self._dataclass_to_dict(self.system)
+            'system': self._dataclass_to_dict(self.system),
+            'quality': self._dataclass_to_dict(self.quality),
+            'robustness': self._dataclass_to_dict(self.robustness)
         }
 
     @staticmethod

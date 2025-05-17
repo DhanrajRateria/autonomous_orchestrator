@@ -1,0 +1,105 @@
+project_name: fl_data_S4_FL_HE_Bad_Clients_QualityRobust_10_90_run1
+system:
+  seed: 42
+  device: cpu
+  checkpoint_dir: experiment_results/S4_FL_HE_Bad_Clients_QualityRobust_10_90_run1_20250511_095349/checkpoints
+  result_dir: experiment_results/S4_FL_HE_Bad_Clients_QualityRobust_10_90_run1_20250511_095349/results
+  log_level: INFO
+  num_workers: 0
+  checkpoint_frequency: 10
+data:
+  data_path: /home/dhanraj/autonomous_orchestrator/federated_learning_framework/examples/data.csv
+  feature_columns:
+  - id
+  - radius_mean
+  - texture_mean
+  - perimeter_mean
+  - area_mean
+  - smoothness_mean
+  - compactness_mean
+  - concavity_mean
+  - concave points_mean
+  - symmetry_mean
+  - fractal_dimension_mean
+  - radius_se
+  - texture_se
+  - perimeter_se
+  - area_se
+  - smoothness_se
+  - compactness_se
+  - concavity_se
+  - concave points_se
+  - symmetry_se
+  - fractal_dimension_se
+  - radius_worst
+  - texture_worst
+  - perimeter_worst
+  - area_worst
+  - smoothness_worst
+  - compactness_worst
+  - concavity_worst
+  - concave points_worst
+  - symmetry_worst
+  - fractal_dimension_worst
+  - 'Unnamed: 32'
+  target_column: diagnosis
+  input_shape:
+  - 32
+  output_shape:
+  - 1
+  normalize: true
+  batch_size: 32
+  val_split: 0.15
+  test_split: 0.15
+  preprocessing_steps: []
+model:
+  type: binary_classifier
+  task_type: binary_classification
+  hidden_layers:
+  - 64
+  - 32
+  activation: relu
+  dropout_rate: 0.3
+  optimizer: adam
+  learning_rate: 0.001
+  loss: binary_cross_entropy
+  metrics:
+  - accuracy
+  l2_regularization: 0.0
+federated:
+  communication_rounds: 20
+  clients_per_round: 2
+  min_clients: 2
+  local_epochs: 3
+  client_learning_rate: 0.01
+  server_learning_rate: 1.0
+  aggregation_method: fedavg
+  proximal_mu: 0.0
+crypto:
+  enabled: true
+  scheme: CKKS
+  poly_modulus_degree: 8192
+  coeff_mod_bit_sizes:
+  - 50
+  - 40
+  - 50
+  global_scale: 1099511627776
+  security_level: 128
+privacy:
+  differential_privacy: false
+  dp_epsilon: 3.0
+  dp_delta: 1.0e-05
+  dp_noise_multiplier: 1.1
+  gradient_clipping: 1.0
+  secure_aggregation: false
+quality:
+  enabled: true
+  score_epsilon: 1.0e-06
+  robust_score_aggregation: true
+  score_clip_percentile_lower: 10.0
+  score_clip_percentile_upper: 90.0
+robustness:
+  fraction_noisy_clients: 0.2
+  label_flip_probability: 0.15
+  fraction_adversarial_clients: 0.1
+  attack_scale_factor: -2.0

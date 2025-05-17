@@ -7,6 +7,7 @@ import sys
 import pandas as pd
 import numpy as np
 import time
+import torch
 from pathlib import Path
 from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
@@ -47,17 +48,35 @@ except ImportError as e:
 logger = logging.getLogger("cancer_detection_main")
 
 
-def setup_logging(log_level_str: str):
+def setup_logging(log_level_str: str, log_dir: str, project_name: str): # Added log_dir and project_name
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
+
+    # Ensure the log directory exists
+    Path(log_dir).mkdir(parents=True, exist_ok=True)
+
+    # Create a unique log file name, e.g., with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_file_name = f"{project_name}_run_{timestamp}.log"
+    log_file_path = Path(log_dir) / log_file_name
+
     logging.basicConfig(
         level=log_level,
         format='%(asctime)s - %(name)-25s - %(levelname)-8s - %(message)s',
-        handlers=[logging.StreamHandler(sys.stdout)], # Ensure logs go to stdout
+        handlers=[
+            logging.StreamHandler(sys.stdout),    # Keep logging to console
+            logging.FileHandler(log_file_path)    # Add logging to a file
+        ],
         datefmt='%Y-%m-%d %H:%M:%S'
     )
+    
     # Set higher level for noisy libraries if needed
     logging.getLogger("asyncio").setLevel(logging.WARNING)
     logging.getLogger("PIL").setLevel(logging.WARNING)
+    # You might want to control TenSEAL's verbosity too if it becomes too much
+    # logging.getLogger("tenseal").setLevel(logging.INFO) # Or WARNING
+
+    # Log where the log file is being saved for user convenience
+    logging.info(f"Logging to console and to file: {log_file_path}")
 
 
 async def prepare_data(num_clients: int, base_data_path: str, target_column: str, task_type: str, data_dir: Path = Path("client_data")) -> Dict[str, str]:
@@ -210,33 +229,85 @@ async def run_federated_learning(config: FrameworkConfig, num_clients: int, clie
 
         # --- Initialize Clients ---
         logger.info(f"Initializing {num_clients} Federated Clients...")
-        initialization_tasks = []
-        client_ids = list(client_data_paths.keys())
+        all_client_ids_list = list(client_data_paths.keys())
+        num_total_clients = len(all_client_ids_list)
+        # Shuffle client IDs to randomize role assignment if not assigning by index
+        # If client_ids are like "client_1", "client_2", parsing index is okay.
+        # For more general IDs, map to indices first.
+        client_indices_for_roles = list(range(num_total_clients))
+        np.random.shuffle(client_indices_for_roles) # Shuffle indices for random assignment
 
-        for client_id in client_ids:
-            data_path = client_data_paths[client_id]
-            client = FederatedClient(client_id, config, data_path)
-            clients[client_id] = client
-            # Prepare initialization task (loads data, creates model, gets public context)
+        num_noisy = int(config.robustness.fraction_noisy_clients * num_total_clients)
+        noisy_client_role_indices = set(client_indices_for_roles[:num_noisy])
+
+        num_adversarial = int(config.robustness.fraction_adversarial_clients * num_total_clients)
+
+        # Ensure adversarial are distinct from noisy for this simple assignment
+        # (can be more complex if overlap is allowed and handled)
+        adversarial_client_role_indices = set(client_indices_for_roles[num_noisy : num_noisy + num_adversarial])
+        
+        logger.info(f"Assigning roles: {num_noisy} noisy clients, {num_adversarial} adversarial clients.")
+
+        clients = {}
+
+        initialization_tasks = []
+        active_client_ids_after_init = list(client_data_paths.keys())
+
+        for i, client_id_str in enumerate(all_client_ids_list):
+            data_path = client_data_paths[client_id_str]
+            
+            # Determine role based on its original index in the shuffled list used for role assignment
+            is_noisy_client = i in noisy_client_role_indices # Check if the *shuffled index* i falls into noisy set
+            is_adversarial_client = i in adversarial_client_role_indices # Check if the *shuffled index* i falls into adversarial set
+            
+            # If using client_id to map to role index directly (e.g. client_1 maps to index 0):
+            # parsed_client_num = int(client_id_str.split('_')[-1]) -1 # Assuming client_X format
+            # is_noisy_client = parsed_client_num in noisy_client_role_indices (if role_indices refer to original client numbers)
+            # For this example, let's assume the simple shuffled assignment based on enumeration order of client_data_paths.keys()
+
+            client = FederatedClient(
+                client_id=client_id_str,
+                config=config, # Pass the full config (now includes pos_weight if set by server DH)
+                data_path=data_path,
+                is_noisy=is_noisy_client,
+                is_adversarial=is_adversarial_client
+            )
+            clients[client_id_str] = client
             initialization_tasks.append(client.initialize(server.public_context_bytes))
+
+        # for client_id in client_ids:
+        #     data_path = client_data_paths[client_id]
+        #     client = FederatedClient(client_id, config, data_path)
+        #     clients[client_id] = client
+        #     # Prepare initialization task (loads data, creates model, gets public context)
+        #     initialization_tasks.append(client.initialize(server.public_context_bytes))
 
         # Run initializations concurrently
         init_results = await asyncio.gather(*initialization_tasks)
 
         successful_inits = 0
         active_client_ids = [] # Keep track of clients ready to participate
-        for i, result in enumerate(init_results):
-            client_id = client_ids[i]
-            if result:
+
+        for i, result_or_exc in enumerate(init_results):
+            client_id = all_client_ids_list[i]
+            if isinstance(result_or_exc, Exception):
+                logger.error(f"Initialization for client {client_id} failed: {result_or_exc}", exc_info=result_or_exc)
+            elif result_or_exc: # True
                 logger.info(f"Client {client_id} initialized successfully.")
                 client_info = clients[client_id].get_client_info()
+                # Server registration might include initial quality metrics if available
+                # For now, it's just basic info
                 await server.register_client(client_id, client_info)
                 successful_inits += 1
-                active_client_ids.append(client_id) # Add to list of ready clients
-            else:
+                active_client_ids_after_init.append(client_id)
+            else: # False
                 logger.error(f"Failed to initialize client {client_id}. It will not participate.")
-                # Remove failed client from our dictionary
-                del clients[client_id]
+                if client_id in clients: del clients[client_id] # Remove from active simulation dict
+
+        if successful_inits < config.federated.min_clients:
+            logger.error(f"Successfully initialized clients ({successful_inits}) < min_clients ({config.federated.min_clients}). Aborting.")
+            if server and server.is_running: await server.stop()
+            return
 
         logger.info(f"Initialized {successful_inits}/{num_clients} clients.")
         if successful_inits < config.federated.min_clients:
@@ -329,6 +400,29 @@ async def run_federated_learning(config: FrameworkConfig, num_clients: int, clie
 
              # Optional: Add a small delay between rounds if needed
              # await asyncio.sleep(1)
+
+        logger.info("Demonstrating prediction with the final global model...")
+        if server.test_dataloader and len(server.test_dataloader.dataset) > 0:
+            # Get a sample. Ensure data_handler used by server has preprocessed it.
+            # The server.test_dataloader already provides preprocessed data.
+            sample_input_batch, sample_target_batch = next(iter(server.test_dataloader))
+            
+            # Take the first sample from the batch
+            sample_input_single = sample_input_batch[0:1].to(server.device) # Keep batch dim for model
+            sample_target_single = sample_target_batch[0:1].item() # Get scalar target
+
+            server.model.eval() # Ensure model is in eval mode
+            with torch.no_grad():
+                prediction_logit = server.model(sample_input_single)
+                # For binary classification with BCEWithLogitsLoss, output is raw logit
+                prediction_prob = torch.sigmoid(prediction_logit).item() 
+                predicted_class = 1 if prediction_prob > 0.5 else 0
+            
+            logger.info(f"Sample for prediction: Actual Target={sample_target_single}, "
+            f"Predicted Probability (Malignant)={prediction_prob:.4f}, "
+            f"Predicted Class (0=Benign, 1=Malignant)={predicted_class}")
+        else:
+            logger.warning("No server test data available to demonstrate prediction.")
 
         logger.info("Federated learning simulation loop finished.")
         # Final evaluation is triggered inside finalize_round if max_rounds is reached
@@ -441,18 +535,22 @@ if __name__ == "__main__":
     try:
         config = FrameworkConfig.from_file(args.config)
     except FileNotFoundError:
+        logging.basicConfig(level=logging.ERROR)
         logger.error(f"Configuration file not found: {args.config}")
         sys.exit(1)
     except Exception as e:
+        logging.basicConfig(level=logging.ERROR)
         logger.error(f"Error loading configuration from {args.config}: {e}", exc_info=True)
         sys.exit(1)
 
     # --- Setup Logging (using level from config) ---
-    setup_logging(config.system.log_level)
+    log_storage_dir = Path(config.system.result_dir) / "run_logs"
+    setup_logging(config.system.log_level, str(log_storage_dir), config.project_name)
     logger.info(f"Loaded configuration from: {args.config}")
     logger.info(f"Project: {config.project_name}, Task: {config.model.task_type}")
     logger.info(f"HE Enabled: {config.crypto.enabled}, DP Enabled: {config.privacy.differential_privacy}")
 
+    logger.info(f"Loaded configuration from: {args.config}")
 
     # --- Determine Base Data Path ---
     base_data_path = args.data if args.data else config.data.data_path

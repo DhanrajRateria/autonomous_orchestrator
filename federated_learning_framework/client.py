@@ -13,7 +13,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Adjust imports based on your actual project structure
-from federated_learning_framework.config import FrameworkConfig, ModelConfig
+from federated_learning_framework.config import FrameworkConfig, ModelConfig, RobustnessConfig
 from federated_learning_framework.crypto_engine import CryptoEngine
 from federated_learning_framework.models import create_model
 from federated_learning_framework.data_handler import DataHandler
@@ -26,7 +26,7 @@ class FederatedClient:
     Supports homomorphic encryption for parameter exchange.
     """
 
-    def __init__(self, client_id: str, config: FrameworkConfig, data_path: str):
+    def __init__(self, client_id: str, config: FrameworkConfig, data_path: str, is_noisy: bool = False, is_adversarial: bool = False):
         """
         Initialize the client.
         Args:
@@ -38,6 +38,13 @@ class FederatedClient:
         self.config = config
         self.local_data_path = data_path
         self.logger = logging.getLogger(f"federated.client.{self.client_id}")
+
+        self.is_noisy = is_noisy
+        self.is_adversarial = is_adversarial
+        if self.is_noisy:
+            self.logger.warning(f"Client {self.client_id} configured as NOISY. Label flip prob: {self.config.robustness.label_flip_probability}")
+        if self.is_adversarial:
+            self.logger.warning(f"Client {self.client_id} configured as ADVERSARIAL. Attack scale: {self.config.robustness.attack_scale_factor}")
 
         # --- System Setup ---
         self.checkpoint_dir = Path(config.system.checkpoint_dir) / f"client_{self.client_id}"
@@ -81,7 +88,13 @@ class FederatedClient:
         self.is_training = False
         self.initialized = False
 
+        self.initial_global_params_np: Optional[Dict[str, np.ndarray]] = None
+
         self.logger.info(f"Federated client '{client_id}' created. Data: {data_path}")
+
+    def _get_model_params_numpy(self, model: nn.Module) -> Dict[str, np.ndarray]:
+        """Helper to get model parameters as a dictionary of numpy arrays."""
+        return {name: param.cpu().detach().numpy().copy() for name, param in model.named_parameters()}
 
     async def initialize(self, public_context_bytes: Optional[bytes] = None):
         """
@@ -99,8 +112,7 @@ class FederatedClient:
             self.logger.info("Loading local dataset...")
             # Use client's specific data path, only request train/val split
             # Server handles test split on its own data
-            self.train_dataloader, self.val_dataloader, _ = await asyncio.to_thread(
-                self.data_handler.load_data,
+            self.train_dataloader, self.val_dataloader, _ = await self.data_handler.load_data(
                 data_override_path=self.local_data_path,
                 val_split=self.config.data.val_split,
                 test_split=0.0 # Clients typically don't have a test set
@@ -206,19 +218,54 @@ class FederatedClient:
             self.model.train() # Set model to training mode
             training_results = await self._train_epochs(optimizer, local_epochs)
 
-            # 4. Extract updated parameters (encrypt if needed)
-            self.logger.debug("Extracting updated parameters...")
-            if self.crypto_engine.is_enabled():
-                self.logger.info("Encrypting updated parameters...")
-                updated_params = self.crypto_engine.encrypt_torch_params(self.model)
-                params_encrypted = True
-                if not updated_params: # Check if encryption failed
-                     raise RuntimeError("Parameter encryption failed.")
+            # --- Calculate Model Delta ---
+            current_local_params_np = self._get_model_params_numpy(self.model)
+            model_delta_np = {}
+            if self.initial_global_params_np is None:
+                self.logger.error("Initial global parameters not stored. Sending full model parameters instead of delta.")
+                model_delta_np = current_local_params_np # Fallback
             else:
-                # Extract plain numpy parameters
-                updated_params = {name: param.cpu().detach().numpy()
-                                  for name, param in self.model.named_parameters()}
+                for name in current_local_params_np:
+                    if name in self.initial_global_params_np:
+                        model_delta_np[name] = current_local_params_np[name] - self.initial_global_params_np[name]
+                    else: # Should not happen if model structures are consistent
+                        model_delta_np[name] = current_local_params_np[name]
+                        self.logger.warning(f"Parameter {name} not in initial_global_params, sending full param value for delta.")
+            self.logger.debug("Calculated model delta.")
+
+            # --- Adversarial Client Logic: Model Poisoning (scaling delta) ---
+            if self.is_adversarial:
+                attack_scale = self.config.robustness.attack_scale_factor
+                self.logger.warning(f"Client {self.client_id} is ADVERSARIAL: scaling delta by {attack_scale}.")
+                for name in model_delta_np:
+                    model_delta_np[name] = model_delta_np[name] * attack_scale
+
+            params_to_send: Union[Dict[str, Any], Dict[str, np.ndarray]]
+            params_encrypted: bool
+            if self.crypto_engine.is_enabled():
+                self.logger.info("Encrypting model delta...")
+                # Use the existing encrypt_model_params which takes a dict of numpy arrays
+                encrypted_delta = self.crypto_engine.encrypt_model_params(model_delta_np)
+                if not encrypted_delta:
+                    raise RuntimeError("Model delta encryption failed.")
+                params_to_send = encrypted_delta
+                params_encrypted = True
+            else:
+                params_to_send = model_delta_np
                 params_encrypted = False
+
+            # --- Calculate Quality Score ---
+            avg_train_loss = training_results.get('train_loss') # Use train_loss from the _train_epochs result
+            quality_score: Optional[float] = None
+            if avg_train_loss is not None and not (np.isnan(avg_train_loss) or np.isinf(avg_train_loss)):
+                if avg_train_loss < 0: # Should not happen with BCE/MSE/CE
+                    self.logger.warning(f"Average train loss {avg_train_loss} is negative. Setting quality score to a low value.")
+                    quality_score = self.config.quality.score_epsilon 
+                else:
+                    quality_score = 1.0 / (avg_train_loss + self.config.quality.score_epsilon)
+            else:
+                self.logger.warning(f"Invalid average train loss ({avg_train_loss}) for quality score calculation. Setting to low value.")
+                quality_score = self.config.quality.score_epsilon # Default to a very small score if loss is problematic
 
             # 5. Prepare result package
             end_time = time.time()
@@ -226,10 +273,11 @@ class FederatedClient:
                 "status": "success",
                 "client_id": self.client_id,
                 "round_id": round_id,
-                "parameters": updated_params,
+                "parameters": params_to_send,
                 "encrypted": params_encrypted,
                 "sample_size": self.train_size,
                 "metrics": training_results, # Contains train_loss, train_acc, val_loss, val_acc
+                "quality_score": quality_score,
                 "train_duration_sec": end_time - start_time,
                 "timestamp": datetime.now().isoformat()
             }
@@ -238,6 +286,7 @@ class FederatedClient:
             self.training_history.append({
                 "round": round_id,
                 "metrics": training_results,
+                "quality_score": quality_score,
                 "duration": end_time - start_time
             })
 
@@ -250,6 +299,7 @@ class FederatedClient:
                            f"Train Acc={training_results.get('train_accuracy', -1):.4f}, "
                            f"Val Loss={training_results.get('val_loss', -1):.4f}, "
                            f"Val Acc={training_results.get('val_accuracy', -1):.4f}")
+            self.logger.info(f"Final calculated quality score for round {round_id}: {quality_score:.6e} (from avg_train_loss: {avg_train_loss})")
             return result
 
         except Exception as e:
@@ -264,6 +314,12 @@ class FederatedClient:
         task_type = self.config.model.task_type
         is_binary = task_type == "binary_classification"
         num_classes = self.config.data.output_shape[0] # From data handler config
+        pos_w_config = self.config.data.pos_weight
+
+        criterion_pos_weight = None
+        if is_binary and pos_w_config is not None:
+            criterion_pos_weight = torch.tensor([pos_w_config], device=self.device)
+            self.logger.debug(f"Using pos_weight for BCEWithLogitsLoss: {criterion_pos_weight.item():.4f}")
 
         # --- Select Loss Function ---
         if is_binary:
@@ -294,7 +350,26 @@ class FederatedClient:
 
             for batch_idx, (inputs, targets) in enumerate(self.train_dataloader):
                 inputs = inputs.to(self.device)
-                targets = targets.to(self.device) # Dtype should be correct from DataHandler
+                original_targets = targets.to(self.device) # Keep original for accuracy calculation
+                
+                # --- Noisy Client Logic: Label Flipping ---
+                current_batch_targets = original_targets.clone() # Work on a copy for potential flipping
+                if self.is_noisy:
+                    if is_binary: # Assuming binary targets are 0 or 1
+                        # Probability for each sample in the batch
+                        flip_probabilities = torch.rand(current_batch_targets.shape, device=self.device)
+                        # Mask where flipping occurs
+                        flip_mask = flip_probabilities < self.config.robustness.label_flip_probability
+                        # Flip: 1 -> 0, 0 -> 1. Ensure target dtype is maintained.
+                        flipped_values = 1 - current_batch_targets[flip_mask].long() # if targets are long for CE
+                        if current_batch_targets.dtype == torch.float32: # For BCE
+                             flipped_values = 1.0 - current_batch_targets[flip_mask]
+
+                        current_batch_targets[flip_mask] = flipped_values.type(current_batch_targets.dtype)
+                        if flip_mask.any():
+                             self.logger.debug(f"Epoch {epoch+1}, Batch {batch_idx+1}: Flipped {flip_mask.sum().item()} labels for noisy training.")
+                    else:
+                         self.logger.warning("Noisy client label flipping not implemented for non-binary tasks yet.")
 
                 optimizer.zero_grad()
                 outputs = self.model(inputs)
@@ -302,13 +377,13 @@ class FederatedClient:
                 # --- Loss Calculation ---
                 if is_binary:
                      # BCEWithLogitsLoss expects output [N] or [N, 1], target [N] or [N, 1] float
-                    loss = criterion(outputs.squeeze(), targets.float()) # Ensure targets are float
+                    loss = criterion(outputs.squeeze(), current_batch_targets.float()) # Ensure targets are float
                 elif task_type == "classification":
                      # CrossEntropyLoss expects output [N, C], target [N] long
-                    loss = criterion(outputs, targets.long()) # Ensure targets are long
+                    loss = criterion(outputs, current_batch_targets.long()) # Ensure targets are long
                 else: # Regression
                      # MSELoss expects output and target of same shape
-                    loss = criterion(outputs.squeeze(), targets.float()) # Ensure targets are float
+                    loss = criterion(outputs.squeeze(), current_batch_targets.float()) # Ensure targets are float
 
 
                 # --- Safe Loss Handling & Backpropagation ---
@@ -327,7 +402,7 @@ class FederatedClient:
                 #    nn.utils.clip_grad_norm_(self.model.parameters(), clip_value)
                 clip_value = self.config.privacy.gradient_clipping # Get value from config
                 if clip_value > 0:
-                    total_norm = nn.utils.clip_grad_norm_(self.model.parameters(), clip_value)
+                    nn.utils.clip_grad_norm_(self.model.parameters(), clip_value)
                 optimizer.step()
 
                 # --- Statistics Update ---
@@ -336,16 +411,15 @@ class FederatedClient:
                 epoch_samples += inputs.size(0)
 
                 # --- Accuracy Calculation (Classification only) ---
-                with torch.no_grad():
+                with torch.no_grad(): # Use original_targets for calculating accuracy
                     if is_binary:
                         predicted = (torch.sigmoid(outputs.squeeze()) > 0.5).float()
-                        correct = (predicted == targets.float()).sum().item()
+                        correct = (predicted == original_targets.float()).sum().item()
                     elif task_type == "classification":
                         _, predicted = torch.max(outputs, 1)
-                        correct = (predicted == targets.long()).sum().item()
+                        correct = (predicted == original_targets.long()).sum().item()
                     else:
-                        correct = 0 # No accuracy concept for regression here
-
+                        correct = 0
                     epoch_correct += correct
 
                 if (batch_idx + 1) % 50 == 0: # Log progress every 50 batches
@@ -497,6 +571,8 @@ class FederatedClient:
                 self.logger.error(f"Error updating model with plain parameters: {e}", exc_info=True)
                 self.logger.warning("Using existing model parameters due to plain update failure.")
 
+        self.initial_global_params_np = self._get_model_params_numpy(self.model)
+        self.logger.debug("Stored initial global parameters for delta calculation.")
 
     def _save_checkpoint(self, tag: str):
         """Save model checkpoint."""

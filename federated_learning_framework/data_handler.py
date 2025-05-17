@@ -107,13 +107,73 @@ class DataHandler:
 
         self.logger.info("Data handler initialized.")
 
-    def load_data(self, data_override_path: Optional[str] = None, val_split: float = 0.2,
+    async def _calculate_pos_weight(self, df: pd.DataFrame, target_column: str) -> Optional[float]:
+        """Calculates positive class weight for BCEWithLogitsLoss."""
+        if target_column not in df.columns:
+            self.logger.error(f"Target column '{target_column}' not in DataFrame for pos_weight calculation.")
+            return None
+        
+        target_series = df[target_column]
+        # Ensure target is binarized if not already (e.g. from string labels)
+        if not pd.api.types.is_numeric_dtype(target_series) or not all(val in [0,1] for val in target_series.unique() if pd.notna(val)):
+            # Try to binarize if it looks like binary classification target
+            if len(target_series.unique()) == 2:
+                try:
+                    # Simple map for binary, assumes 0 is negative, 1 is positive after potential encoding
+                    # This part might need adjustment based on how your target is initially encoded
+                    # For cancer 'diagnosis', it might be 'M'/'B'. LabelEncoder handles this.
+                    # Let's assume target_series for binary is already 0/1 after initial processing steps
+                    # like LabelEncoding if it was text.
+                    # If it's already numeric 0/1, value_counts will work.
+                    pass # Assume it's handled by LabelEncoder or is already 0/1
+                except Exception as e:
+                    self.logger.warning(f"Could not ensure binary 0/1 target for pos_weight: {e}. Pos_weight may be None.")
+                    return None
+            else: # Not binary
+                return None
+
+        counts = target_series.value_counts()
+        if 0 in counts and 1 in counts and counts[1] > 0: # Ensure both classes exist and positive class has samples
+            pos_weight_val = counts[0] / counts[1]
+            self.logger.info(f"Calculated pos_weight: {pos_weight_val:.4f} (neg_count={counts[0]}, pos_count={counts[1]})")
+            return pos_weight_val
+        else:
+            self.logger.warning(f"Cannot calculate pos_weight. Target distribution: {counts}. Ensure binary 0/1 target with both classes present.")
+            return None
+
+    async def load_data(self, data_override_path: Optional[str] = None, val_split: float = 0.2,
                  test_split: float = 0.1) -> Tuple[DataLoader, Optional[DataLoader], Optional[DataLoader]]:
         """
         Loads the dataset specified by data_override_path (for clients) or config.data_path (for server).
         Splits data into train, validation, and test sets.
         Returns DataLoaders for each split. Set test_split=0 for clients usually.
         """
+        if data_override_path is None and self.data_config.pos_weight is None and self.task_type == "binary_classification":
+            # Load the full dataframe to calculate global pos_weight
+            # This logic assumes data_override_path is None for server's initial full data load
+            full_data_path_to_load = self.data_config.data_path
+            if Path(full_data_path_to_load).is_file() and Path(full_data_path_to_load).suffix == ".csv":
+                temp_df_full = pd.read_csv(full_data_path_to_load)
+                # --- Preprocess target for pos_weight calculation if needed ---
+                # This depends on whether target_column is raw or needs encoding first
+                # For breast cancer data, 'diagnosis' is 'M'/'B'.
+                if self.data_config.target_column and self.data_config.target_column in temp_df_full.columns:
+                    target_for_pos_weight = temp_df_full[self.data_config.target_column]
+                    if not pd.api.types.is_numeric_dtype(target_for_pos_weight):
+                        le_temp = LabelEncoder() # Use a temporary encoder just for this
+                        target_for_pos_weight_encoded = le_temp.fit_transform(target_for_pos_weight)
+                        # Create a temporary series/df for calculation
+                        temp_df_for_calc = pd.DataFrame({self.data_config.target_column: target_for_pos_weight_encoded})
+                        self.full_config.data.pos_weight = await self._calculate_pos_weight(temp_df_for_calc, self.data_config.target_column)
+                    else: # Already numeric (0/1)
+                        self.full_config.data.pos_weight = await self._calculate_pos_weight(temp_df_full, self.data_config.target_column)
+                    
+                    if self.full_config.data.pos_weight is not None:
+                         self.logger.info(f"Global pos_weight set in config: {self.full_config.data.pos_weight:.4f}")
+                else:
+                    self.logger.warning("Target column not defined for pos_weight calculation during initial server data load.")
+            else:
+                self.logger.warning(f"Could not load full dataset from {full_data_path_to_load} to calculate pos_weight.")
         data_path = data_override_path if data_override_path else self.data_config.data_path
         self.logger.info(f"Attempting to load data from: {data_path}")
 

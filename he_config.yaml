@@ -89,3 +89,15 @@ privacy:
   dp_noise_multiplier: 1.1
   gradient_clipping: 1.0
   secure_aggregation: false
+quality:
+  enabled: true
+  score_epsilon: 0.000001
+  robust_score_aggregation: true
+  score_clip_percentile_lower: 5.0
+  score_clip_percentile_upper: 95.0
+
+robustness:
+  fraction_noisy_clients: 0.2  # e.g., 20% noisy clients
+  label_flip_probability: 0.15 # 15% chance to flip a label for noisy ones
+  fraction_adversarial_clients: 0.1 # e.g., 10% adversarial clients
+  attack_scale_factor: -2.0 # Invert and double the delta
